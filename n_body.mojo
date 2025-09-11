@@ -90,7 +90,7 @@ struct NBodySystem(Copyable, Movable):
                 self.acc_y[i] += (force_magnitude_vec * dy_vec).reduce_add()
                 self.acc_z[i] += (force_magnitude_vec * dz_vec).reduce_add()
 
-                vectorize[vectorized_force_calculation, NELTS, unroll_factor=UNROLL_FACTOR](N)
+            vectorize[vectorized_force_calculation, NELTS, unroll_factor=UNROLL_FACTOR](N)
         parallelize[process_particle](N)
 
 
