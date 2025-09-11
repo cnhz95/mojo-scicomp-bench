@@ -48,7 +48,6 @@ struct NBodySystem(Copyable, Movable):
         rand(self.vel_y, N, min=-0.1, max=0.1)
         rand(self.vel_z, N, min=-0.1, max=0.1)
         rand(self.mass, N, min=0.1, max=2.0)
-
         self.reset_acceleration()
 
     fn __del__(owned self):
@@ -65,59 +64,60 @@ struct NBodySystem(Copyable, Movable):
 
 
     @always_inline
-    fn compute_acceleration(self):
+    fn calculate_forces(self):
         @parameter
-        fn parallel_compute_acceleration(i: Int):
+        fn process_particle(i: Int):
             pos_x_i = self.pos_x[i]
             pos_y_i = self.pos_y[i]
             pos_z_i = self.pos_z[i]
 
             @parameter
-            fn compute_forces_from_j[width: Int](offset: Int):
+            fn vectorized_force_calculation[width: Int](offset: Int):
                 dx_vec = self.pos_x.load[width=width](offset) - pos_x_i
                 dy_vec = self.pos_y.load[width=width](offset) - pos_y_i
                 dz_vec = self.pos_z.load[width=width](offset) - pos_z_i
                 mass_j_vec = self.mass.load[width=width](offset)
                 
+                # Avoid self-interaction
                 indices = iota[DType.int32, width](offset)
                 mask_vec = (indices != i).select(1.0, 0.0)
 
                 distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING
                 distance_vec = sqrt(distance_squared_vec)
-                force_vec = G * mass_j_vec / (distance_vec * distance_squared_vec) * mask_vec
+                force_magnitude_vec = G * mass_j_vec / (distance_vec * distance_squared_vec) * mask_vec
 
-                self.acc_x[i] += (force_vec * dx_vec).reduce_add()
-                self.acc_y[i] += (force_vec * dy_vec).reduce_add()
-                self.acc_z[i] += (force_vec * dz_vec).reduce_add()
+                self.acc_x[i] += (force_magnitude_vec * dx_vec).reduce_add()
+                self.acc_y[i] += (force_magnitude_vec * dy_vec).reduce_add()
+                self.acc_z[i] += (force_magnitude_vec * dz_vec).reduce_add()
 
-                vectorize[compute_forces_from_j, NELTS, unroll_factor=UNROLL_FACTOR](N)
-        parallelize[parallel_compute_acceleration](N)
+                vectorize[vectorized_force_calculation, NELTS, unroll_factor=UNROLL_FACTOR](N)
+        parallelize[process_particle](N)
 
 
     @always_inline
-    fn advance(self):
+    fn leapfrog_integration(self):
         alias HALF_DT = 0.5 * DT
 
         @parameter
-        fn kick[width: Int](offset: Int):
+        fn kick_step[width: Int](offset: Int):
             self.vel_x.store[width=width](offset, self.vel_x.load[width=width](offset) + self.acc_x.load[width=width](offset) * HALF_DT)
             self.vel_y.store[width=width](offset, self.vel_y.load[width=width](offset) + self.acc_y.load[width=width](offset) * HALF_DT)
             self.vel_z.store[width=width](offset, self.vel_z.load[width=width](offset) + self.acc_z.load[width=width](offset) * HALF_DT)
 
-        vectorize[kick, NELTS, unroll_factor=UNROLL_FACTOR](N)
+        vectorize[kick_step, NELTS, unroll_factor=UNROLL_FACTOR](N)
         
         @parameter
-        fn drift[width: Int](offset: Int):
+        fn drift_step[width: Int](offset: Int):
             self.pos_x.store[width=width](offset, self.pos_x.load[width=width](offset) + self.vel_x.load[width=width](offset) * DT)
             self.pos_y.store[width=width](offset, self.pos_y.load[width=width](offset) + self.vel_y.load[width=width](offset) * DT)
             self.pos_z.store[width=width](offset, self.pos_z.load[width=width](offset) + self.vel_z.load[width=width](offset) * DT)
 
-        vectorize[drift, NELTS, unroll_factor=UNROLL_FACTOR](N)
+        vectorize[drift_step, NELTS, unroll_factor=UNROLL_FACTOR](N)
 
         self.reset_acceleration()
-        self.compute_acceleration()
+        self.calculate_forces()
 
-        vectorize[kick, NELTS, unroll_factor=UNROLL_FACTOR](N)
+        vectorize[kick_step, NELTS, unroll_factor=UNROLL_FACTOR](N)
 
 
     @always_inline
@@ -128,11 +128,11 @@ struct NBodySystem(Copyable, Movable):
         
 
     @always_inline
-    fn compute_energy(self) -> Float64:
+    fn calculate_total_energy(self) -> Float64:
         energy: Float64 = 0.0
 
         @parameter
-        fn compute_kinetic_energy[width: Int](offset: Int):
+        fn calculate_kinetic_energy[width: Int](offset: Int):
             vel_x_vec = self.vel_x.load[width=width](offset)
             vel_y_vec = self.vel_y.load[width=width](offset)
             vel_z_vec = self.vel_z.load[width=width](offset)
@@ -142,12 +142,12 @@ struct NBodySystem(Copyable, Movable):
             # Kinetic energy: 0.5 * m * v^2
             energy += 0.5 * (mass_vec * vel_squared_vec).reduce_add()
 
-        vectorize[compute_kinetic_energy, NELTS, unroll_factor=UNROLL_FACTOR](N)
+        vectorize[calculate_kinetic_energy, NELTS, unroll_factor=UNROLL_FACTOR](N)
 
-        energy_contributions = UnsafePointer[Scalar[DTYPE]].alloc(N)
+        potential_contributions = UnsafePointer[Scalar[DTYPE]].alloc(N)
         
         @parameter
-        fn compute_contributions(i: Int):
+        fn calculate_potential_energy(i: Int):
             local_energy: Float64 = 0.0
             pos_x_i = self.pos_x[i]
             pos_y_i = self.pos_y[i]
@@ -155,12 +155,13 @@ struct NBodySystem(Copyable, Movable):
             mass_i = self.mass[i]
 
             @parameter
-            fn compute_potential_energy[width: Int](offset: Int):
-                j = i + 1 + offset  # Only process j > i
+            fn vectorized_potential[width: Int](offset: Int):
+                j = i + 1 + offset  # Only process j > i to avoid double counting
                 dx_vec = self.pos_x.load[width=width](j) - pos_x_i
                 dy_vec = self.pos_y.load[width=width](j) - pos_y_i
                 dz_vec = self.pos_z.load[width=width](j) - pos_z_i
                 mass_j_vec = self.mass.load[width=width](j)
+
                 distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING
                 distance_vec = sqrt(distance_squared_vec)
                 
@@ -169,43 +170,41 @@ struct NBodySystem(Copyable, Movable):
                 mass_i_vec = SIMD[DTYPE, width](mass_i)
                 local_energy -= (G_vec * mass_i_vec * mass_j_vec / distance_vec).reduce_add()
                 
-            vectorize[compute_potential_energy, NELTS, unroll_factor=UNROLL_FACTOR](N - (i + 1))
-            energy_contributions[i] = local_energy
+            vectorize[vectorized_potential, NELTS, unroll_factor=UNROLL_FACTOR](N - (i + 1))
+            potential_contributions[i] = local_energy
 
-        parallelize[compute_contributions](N)
+        parallelize[calculate_potential_energy](N)
 
         @parameter
         fn sum_chunk[width: Int](offset: Int):
-            energy += energy_contributions.load[width=width](offset).reduce_add()
+            energy += potential_contributions.load[width=width](offset).reduce_add()
 
         vectorize[sum_chunk, NELTS](N)
         
-        energy_contributions.free()
+        potential_contributions.free()
         return energy 
 
 
 fn main() raises:
     warmup_system = NBodySystem()
     for _ in range(WARMUP_STEPS):
-        warmup_system.advance()
+        warmup_system.leapfrog_integration()
 
     n_body_system = NBodySystem()    
-    n_body_system.compute_acceleration()
-    initial_energy = n_body_system.compute_energy()
+    n_body_system.calculate_forces()
+    initial_energy = n_body_system.calculate_total_energy()
 
     start_time = perf_counter()
-
     for _ in range(BENCHMARK_STEPS):
-        n_body_system.advance()
-
+        n_body_system.leapfrog_integration()
     end_time = perf_counter()
     
-    final_energy = n_body_system.compute_energy()
+    final_energy = n_body_system.calculate_total_energy()
 
     relative_error = abs(final_energy - initial_energy) / abs(initial_energy)
-    assert_true(relative_error < 0.01, "Energy drift too large: " + String(round(relative_error * 100, 2)) + "%")
+    assert_true(relative_error < 0.01, "Energy drift too large: " + String(round(relative_error * 100, 4)) + "%")
 
     print("Initial system energy:\t", initial_energy)
     print("Final system energy:\t", final_energy)
-    print("Execution time:",  end_time - start_time, "s")
+    print("Execution time:\t\t",  end_time - start_time, "s")
     
