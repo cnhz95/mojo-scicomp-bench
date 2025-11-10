@@ -7,6 +7,7 @@ from time import perf_counter
 alias N = 1 << 20
 alias DTYPE = DType.float64
 alias NELTS = simd_width_of[DTYPE]() * 2
+alias UNROLL_FACTOR = 4
 
 @always_inline
 fn reverse_bits(x: Int, num_bits: Int) -> Int:
@@ -78,7 +79,7 @@ fn fft(reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]],
                 reals.store[width=width](odd_base, u_re - v_re)
                 imags.store[width=width](odd_base, u_im - v_im)
 
-            vectorize[butterfly_computation, NELTS](half)
+            vectorize[butterfly_computation, NELTS, unroll_factor=UNROLL_FACTOR](half)
 
         parallelize[process_block](N // len)
         len <<= 1
@@ -91,7 +92,7 @@ fn fft(reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]],
             reals.store[width=width](offset, reals.load[width=width](offset) * scale)
             imags.store[width=width](offset, imags.load[width=width](offset) * scale)
         
-        vectorize[normalize, NELTS](N)
+        vectorize[normalize, NELTS, unroll_factor=UNROLL_FACTOR](N)
 
     w_re.free()
     w_im.free()
