@@ -1,20 +1,19 @@
 from math import sqrt, iota
 from memory import UnsafePointer, memset_zero
 from algorithm.functional import vectorize, parallelize
-from random import rand
-from sys import simdwidthof
+from sys.info import simd_width_of
 from time import perf_counter
+from random import rand
 from testing import assert_true
 
 alias N = 1 << 14
 alias G = 1.0
-alias DT = 0.001
-alias SOFTENING = 0.01
-alias BENCHMARK_STEPS = 100
+alias DT = 0.0001
+alias SOFTENING = 0.005
 alias WARMUP_STEPS = 10
-alias NUM_RUNS = 5
+alias BENCHMARK_STEPS = 100
 alias DTYPE = DType.float64
-alias NELTS = simdwidthof[DTYPE]() * 2
+alias NELTS = simd_width_of[DTYPE]() * 2
 alias UNROLL_FACTOR = 4
 
 struct NBodySystem(Copyable, Movable):
@@ -50,7 +49,7 @@ struct NBodySystem(Copyable, Movable):
         rand(self.mass, N, min=0.1, max=2.0)
         self.reset_acceleration()
 
-    fn __del__(owned self):
+    fn __del__(deinit self):
         self.pos_x.free()
         self.pos_y.free()
         self.pos_z.free()
@@ -72,7 +71,7 @@ struct NBodySystem(Copyable, Movable):
             pos_z_i = self.pos_z[i]
 
             @parameter
-            fn vectorized_force_calculation[width: Int](offset: Int):
+            fn calculate_force[width: Int](offset: Int):
                 dx_vec = self.pos_x.load[width=width](offset) - pos_x_i
                 dy_vec = self.pos_y.load[width=width](offset) - pos_y_i
                 dz_vec = self.pos_z.load[width=width](offset) - pos_z_i
@@ -80,7 +79,7 @@ struct NBodySystem(Copyable, Movable):
                 
                 # Avoid self-interaction
                 indices = iota[DType.int32, width](offset)
-                mask_vec = (indices != i).select(1.0, 0.0)
+                mask_vec = SIMD[DType.bool, width](fill=(indices != i)).select(1.0, 0.0)
 
                 distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING
                 distance_vec = sqrt(distance_squared_vec)
@@ -90,7 +89,7 @@ struct NBodySystem(Copyable, Movable):
                 self.acc_y[i] += (force_magnitude_vec * dy_vec).reduce_add()
                 self.acc_z[i] += (force_magnitude_vec * dz_vec).reduce_add()
 
-            vectorize[vectorized_force_calculation, NELTS, unroll_factor=UNROLL_FACTOR](N)
+            vectorize[calculate_force, NELTS, unroll_factor=UNROLL_FACTOR](N)
         parallelize[process_particle](N)
 
 
