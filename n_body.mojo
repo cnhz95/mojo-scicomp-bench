@@ -66,6 +66,10 @@ struct NBodySystem(Copyable, Movable):
     fn calculate_forces(self):
         @parameter
         fn process_particle(i: Int):
+            acc_x_local = 0.0
+            acc_y_local = 0.0
+            acc_z_local = 0.0
+
             pos_x_i = self.pos_x[i]
             pos_y_i = self.pos_y[i]
             pos_z_i = self.pos_z[i]
@@ -83,13 +87,19 @@ struct NBodySystem(Copyable, Movable):
 
                 distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING
                 distance_vec = sqrt(distance_squared_vec)
-                force_magnitude_vec = G * mass_j_vec / (distance_vec * distance_squared_vec) * mask_vec
+                force_vec = G * mass_j_vec / (distance_vec * distance_squared_vec) * mask_vec
 
-                self.acc_x[i] += (force_magnitude_vec * dx_vec).reduce_add()
-                self.acc_y[i] += (force_magnitude_vec * dy_vec).reduce_add()
-                self.acc_z[i] += (force_magnitude_vec * dz_vec).reduce_add()
+                acc_x_local += (force_vec * dx_vec).reduce_add()
+                acc_y_local += (force_vec * dy_vec).reduce_add()
+                acc_z_local += (force_vec * dz_vec).reduce_add()
 
             vectorize[calculate_force, NELTS, unroll_factor=UNROLL_FACTOR](N)
+
+            # Each particle writes to its own acceleration slots
+            self.acc_x[i] = acc_x_local
+            self.acc_y[i] = acc_y_local
+            self.acc_z[i] = acc_z_local
+
         parallelize[process_particle](N)
 
 
