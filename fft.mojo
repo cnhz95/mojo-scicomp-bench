@@ -1,5 +1,5 @@
 from math import pi, cos, sin, log2
-from algorithm.functional import vectorize
+from algorithm.functional import vectorize, parallelize
 from sys.info import simd_width_of
 from memory import memset_zero
 from time import perf_counter
@@ -29,30 +29,36 @@ fn fft(reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]],
     num_bits = Int(log2(Float64(N)))
 
     # Bit-reversal permutation
-    for i in range(N):
+    @parameter
+    fn bit_reverse(i: Int):
         j = reverse_bits(i, num_bits)
         if j > i:
             swap(reals[i], reals[j])
             swap(imags[i], imags[j])
+    
+    parallelize[bit_reverse](N)  # The swaps are disjoint
 
     w_re = UnsafePointer[Float64].alloc(N // 2)
     w_im = UnsafePointer[Float64].alloc(N // 2)
-    
-    # Precompute twiddle factors
-    for k in range(N // 2):
+
+    @parameter
+    fn precompute_twiddle_table(k: Int):
         theta = sign * 2.0 * pi * Float64(k) / Float64(N)
         w_re[k] = cos(theta)
         w_im[k] = sin(theta)
-
+    
+    parallelize[precompute_twiddle_table](N // 2)
+    
     len = 2
     while len <= N:
         half = len >> 1
-        w_stride = N // len
+        w_stride = N // len  # Stride in twiddle table
 
-        for i in range(0, N, len):
+        @parameter
+        fn process_block(i: Int):
             @parameter
             fn butterfly_computation[width: Int](j_offset: Int):
-                even_base = i + j_offset
+                even_base = (i * len) + j_offset 
                 odd_base = even_base + half
                 w_base = j_offset * w_stride
 
@@ -74,6 +80,7 @@ fn fft(reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]],
 
             vectorize[butterfly_computation, NELTS](half)
 
+        parallelize[process_block](N // len)
         len <<= 1
 
     # Normalization for inverse FFT
