@@ -2,11 +2,12 @@ from math import sqrt, iota
 from memory import UnsafePointer, memset_zero
 from algorithm.functional import vectorize, parallelize
 from sys.info import simd_width_of
+from os.atomic import Atomic
 from time import perf_counter
 from random import rand
 from testing import assert_true
 
-alias N = 1 << 14
+alias N = 1 << 10
 alias G = 1.0
 alias DT = 0.0001
 alias SOFTENING = 0.005
@@ -131,7 +132,8 @@ struct NBodySystem(Copyable, Movable):
 
     @always_inline
     fn compute_total_energy(self) -> Float64:
-        energy = 0.0
+        kinetic_energy = 0.0
+        potential_energy = Atomic[DTYPE](0.0)
 
         @parameter
         fn compute_kinetic_energy[width: Int](offset: Int):
@@ -142,15 +144,13 @@ struct NBodySystem(Copyable, Movable):
             vel_squared_vec = vel_x_vec * vel_x_vec + vel_y_vec * vel_y_vec + vel_z_vec * vel_z_vec
             
             # Kinetic energy: 0.5 * m * v^2
-            energy += 0.5 * (mass_vec * vel_squared_vec).reduce_add()
+            kinetic_energy += 0.5 * (mass_vec * vel_squared_vec).reduce_add()
 
         vectorize[compute_kinetic_energy, NELTS, unroll_factor=UNROLL_FACTOR](N)
 
-        potential_contributions = UnsafePointer[Scalar[DTYPE]].alloc(N)
-        
         @parameter
         fn compute_contributions(i: Int):
-            local_energy = 0.0
+            local_potential_energy = 0.0
             pos_x_i = self.pos_x[i]
             pos_y_i = self.pos_y[i]
             pos_z_i = self.pos_z[i]
@@ -168,23 +168,14 @@ struct NBodySystem(Copyable, Movable):
                 distance_vec = sqrt(distance_squared_vec)
                 
                 # Potential energy: -G * m1 * m2 / r
-                G_vec = SIMD[DTYPE, width](G)
-                mass_i_vec = SIMD[DTYPE, width](mass_i)
-                local_energy -= (G_vec * mass_i_vec * mass_j_vec / distance_vec).reduce_add()
+                local_potential_energy -= G * mass_i * (mass_j_vec / distance_vec).reduce_add()
                 
             vectorize[compute_potential_energy, NELTS, unroll_factor=UNROLL_FACTOR](N - (i + 1))
-            potential_contributions[i] = local_energy
+            _ = potential_energy.fetch_add(local_potential_energy)
 
         parallelize[compute_contributions](N)
 
-        @parameter
-        fn sum_chunk[width: Int](offset: Int):
-            energy += potential_contributions.load[width=width](offset).reduce_add()
-
-        vectorize[sum_chunk, NELTS](N)
-        
-        potential_contributions.free()
-        return energy 
+        return kinetic_energy + potential_energy.load() 
 
 
     @always_inline
