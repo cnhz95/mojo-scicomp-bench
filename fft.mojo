@@ -1,9 +1,12 @@
 from math import pi, cos, sin, log2
+from algorithm.functional import vectorize
+from sys.info import simd_width_of
 from memory import memset_zero
 from time import perf_counter
 
 alias N = 1 << 20
 alias DTYPE = DType.float64
+alias NELTS = simd_width_of[DTYPE]() * 2
 
 @always_inline
 fn reverse_bits(x: Int, num_bits: Int) -> Int:
@@ -13,6 +16,7 @@ fn reverse_bits(x: Int, num_bits: Int) -> Int:
         result = (result << 1) | ((x >> i) & 1)
     
     return result
+
 
 @always_inline
 fn fft(reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]], inverse: Bool):
@@ -46,29 +50,41 @@ fn fft(reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]],
         w_stride = N // len
 
         for i in range(0, N, len):
-            for j in range(half):
-                even_idx = i + j
-                odd_idx = even_idx + half
-                w_idx = j * w_stride
+            @parameter
+            fn butterfly_computation[width: Int](j_offset: Int):
+                even_base = i + j_offset
+                odd_base = even_base + half
+                w_base = j_offset * w_stride
 
-                u_re = reals[even_idx]
-                u_im = imags[even_idx]
-                v_re = reals[odd_idx] * w_re[w_idx] - imags[odd_idx] * w_im[w_idx]
-                v_im = reals[odd_idx] * w_im[w_idx] + imags[odd_idx] * w_re[w_idx]
+                var w_re = w_re.offset(w_base).strided_load[width=width](w_stride)
+                var w_im = w_im.offset(w_base).strided_load[width=width](w_stride)
                 
-                reals[even_idx] = u_re + v_re
-                imags[even_idx] = u_im + v_im
-                reals[odd_idx] = u_re - v_re
-                imags[odd_idx] = u_im - v_im
+                u_re = reals.load[width=width](even_base)
+                u_im = imags.load[width=width](even_base)
+                odd_re = reals.load[width=width](odd_base)
+                odd_im = imags.load[width=width](odd_base)
                 
+                v_re = odd_re * w_re - odd_im * w_im
+                v_im = odd_re * w_im + odd_im * w_re
+                
+                reals.store[width=width](even_base, u_re + v_re)
+                imags.store[width=width](even_base, u_im + v_im)
+                reals.store[width=width](odd_base, u_re - v_re)
+                imags.store[width=width](odd_base, u_im - v_im)
+
+            vectorize[butterfly_computation, NELTS](half)
+
         len <<= 1
 
     # Normalization for inverse FFT
     if inverse:
         scale = 1.0 / Float64(N)
-        for i in range(N):
-            reals[i] *= scale
-            imags[i] *= scale
+        @parameter
+        fn normalize[width: Int](offset: Int):
+            reals.store[width=width](offset, reals.load[width=width](offset) * scale)
+            imags.store[width=width](offset, imags.load[width=width](offset) * scale)
+        
+        vectorize[normalize, NELTS](N)
 
     w_re.free()
     w_im.free()
