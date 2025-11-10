@@ -117,21 +117,14 @@ struct NBodySystem(Copyable, Movable):
         self.calculate_forces()
 
         vectorize[kick_step, NELTS, unroll_factor=UNROLL_FACTOR](N)
-
-
-    @always_inline
-    fn reset_acceleration(self):
-        memset_zero(self.acc_x, N)
-        memset_zero(self.acc_y, N)
-        memset_zero(self.acc_z, N)
         
 
     @always_inline
-    fn calculate_total_energy(self) -> Float64:
-        energy: Float64 = 0.0
+    fn compute_total_energy(self) -> Float64:
+        energy = 0.0
 
         @parameter
-        fn calculate_kinetic_energy[width: Int](offset: Int):
+        fn compute_kinetic_energy[width: Int](offset: Int):
             vel_x_vec = self.vel_x.load[width=width](offset)
             vel_y_vec = self.vel_y.load[width=width](offset)
             vel_z_vec = self.vel_z.load[width=width](offset)
@@ -141,20 +134,20 @@ struct NBodySystem(Copyable, Movable):
             # Kinetic energy: 0.5 * m * v^2
             energy += 0.5 * (mass_vec * vel_squared_vec).reduce_add()
 
-        vectorize[calculate_kinetic_energy, NELTS, unroll_factor=UNROLL_FACTOR](N)
+        vectorize[compute_kinetic_energy, NELTS, unroll_factor=UNROLL_FACTOR](N)
 
         potential_contributions = UnsafePointer[Scalar[DTYPE]].alloc(N)
         
         @parameter
-        fn calculate_potential_energy(i: Int):
-            local_energy: Float64 = 0.0
+        fn compute_contributions(i: Int):
+            local_energy = 0.0
             pos_x_i = self.pos_x[i]
             pos_y_i = self.pos_y[i]
             pos_z_i = self.pos_z[i]
             mass_i = self.mass[i]
 
             @parameter
-            fn vectorized_potential[width: Int](offset: Int):
+            fn compute_potential_energy[width: Int](offset: Int):
                 j = i + 1 + offset  # Only process j > i to avoid double counting
                 dx_vec = self.pos_x.load[width=width](j) - pos_x_i
                 dy_vec = self.pos_y.load[width=width](j) - pos_y_i
@@ -169,10 +162,10 @@ struct NBodySystem(Copyable, Movable):
                 mass_i_vec = SIMD[DTYPE, width](mass_i)
                 local_energy -= (G_vec * mass_i_vec * mass_j_vec / distance_vec).reduce_add()
                 
-            vectorize[vectorized_potential, NELTS, unroll_factor=UNROLL_FACTOR](N - (i + 1))
+            vectorize[compute_potential_energy, NELTS, unroll_factor=UNROLL_FACTOR](N - (i + 1))
             potential_contributions[i] = local_energy
 
-        parallelize[calculate_potential_energy](N)
+        parallelize[compute_contributions](N)
 
         @parameter
         fn sum_chunk[width: Int](offset: Int):
@@ -184,6 +177,13 @@ struct NBodySystem(Copyable, Movable):
         return energy 
 
 
+    @always_inline
+    fn reset_acceleration(self):
+        memset_zero(self.acc_x, N)
+        memset_zero(self.acc_y, N)
+        memset_zero(self.acc_z, N)
+
+
 fn main() raises:
     warmup_system = NBodySystem()
     for _ in range(WARMUP_STEPS):
@@ -191,14 +191,14 @@ fn main() raises:
 
     n_body_system = NBodySystem()    
     n_body_system.calculate_forces()
-    initial_energy = n_body_system.calculate_total_energy()
+    initial_energy = n_body_system.compute_total_energy()
 
     start_time = perf_counter()
     for _ in range(BENCHMARK_STEPS):
         n_body_system.leapfrog_integration()
     end_time = perf_counter()
     
-    final_energy = n_body_system.calculate_total_energy()
+    final_energy = n_body_system.compute_total_energy()
 
     relative_error = abs(final_energy - initial_energy) / abs(initial_energy)
     assert_true(relative_error < 0.01, "Energy drift too large: " + String(round(relative_error * 100, 4)) + "%")
