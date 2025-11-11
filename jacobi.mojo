@@ -18,6 +18,7 @@ alias MAX_ITER = 500
 alias INITIAL_TEMP = 20.0
 alias DTYPE = DType.float64
 alias NELTS = simd_width_of[DTYPE]() * 2
+alias UNROLL_FACTOR = 4
 
 struct Heat2DJacobi(ImplicitlyCopyable, Movable):
     var T_curr: UnsafePointer[Scalar[DTYPE]]
@@ -48,7 +49,7 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
         fn initial_temperature[width: Int](offset: Int):
             self.T_curr.store[width=width](offset, INITIAL_TEMP)
 
-        vectorize[initial_temperature, NELTS](SIZE)
+        vectorize[initial_temperature, NELTS, unroll_factor=UNROLL_FACTOR](SIZE)
         memset_zero(self.T_next, SIZE)
 
 
@@ -60,7 +61,7 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
             T.store[width=width](self.idx(0, offset), 100.0)    # Top
             T.store[width=width](self.idx(NX - 1, offset), 0.0) # Bottom
             
-        vectorize[apply_top_bottom, NELTS](NY)
+        vectorize[apply_top_bottom, NELTS, unroll_factor=UNROLL_FACTOR](NY)
 
         T.strided_store[width=NELTS](0.0, NY)                   # Left
         T.offset(NY - 1).strided_store[width=NELTS](50.0, NY)   # Right
@@ -82,7 +83,7 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
                     / CENTER_COEFF
                 )
 
-            vectorize[process_cols, NELTS](NY - 2)  # NY - 2 interior columns to process per row
+            vectorize[process_cols, NELTS, unroll_factor=UNROLL_FACTOR](NY - 2)  # NY - 2 interior columns to process per row
         parallelize[process_row](NX - 2)  # Spawn NX - 2 tasks, each computing one interior row
 
 
@@ -110,7 +111,7 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
                 local_res_sum += (Ax * Ax).reduce_add()
                 local_norm_sum += (center * center).reduce_add()
 
-            vectorize[compute_residual, NELTS](NY - 2)
+            vectorize[compute_residual, NELTS, unroll_factor=UNROLL_FACTOR](NY - 2)
 
             _ = res_acc.fetch_add(local_res_sum)
             _ = norm_acc.fetch_add(local_norm_sum)
