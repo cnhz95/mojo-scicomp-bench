@@ -1,10 +1,10 @@
-from math import sqrt, iota
-from memory import UnsafePointer, memset_zero
+from memory import memset_zero
 from algorithm.functional import vectorize, parallelize
 from sys.info import simd_width_of
 from os.atomic import Atomic
-from time import perf_counter
+from math import sqrt, iota
 from random import rand
+from time import perf_counter
 from testing import assert_true
 
 alias N = 1 << 10
@@ -202,9 +202,11 @@ fn main() raises:
     final_energy = n_body_system.compute_total_energy()
 
     relative_error = abs(final_energy - initial_energy) / abs(initial_energy)
-    assert_true(relative_error < 0.01, "Energy drift too large: " + String(round(relative_error * 100, 4)) + "%")
+    energy_drift = round(relative_error * 100, 4)
+    assert_true(relative_error < 0.01, "Energy drift too large: " + String(energy_drift) + "%")
 
     print("Initial system energy:\t", initial_energy)
     print("Final system energy:\t", final_energy)
+    print("Energy dift:\t\t", energy_drift, "%")
     print("Execution time:\t\t",  end_time - start_time, "s")
     
