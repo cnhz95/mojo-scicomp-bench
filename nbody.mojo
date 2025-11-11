@@ -158,7 +158,7 @@ struct NBodySystem(Copyable, Movable):
 
             @parameter
             fn compute_potential_energy[width: Int](offset: Int):
-                j = i + 1 + offset  # Only process j > i to avoid double counting
+                j = i + 1 + offset  # Avoid double counting
                 dx_vec = self.pos_x.load[width=width](j) - pos_x_i
                 dy_vec = self.pos_y.load[width=width](j) - pos_y_i
                 dz_vec = self.pos_z.load[width=width](j) - pos_z_i
