@@ -1,4 +1,6 @@
 from memory import memset_zero, memcpy
+from algorithm.functional import vectorize
+from sys.info import simd_width_of
 from math import sqrt
 from time import perf_counter
 
@@ -14,6 +16,7 @@ alias TOL = 1e-8
 alias MAX_ITER = 500
 alias INITIAL_TEMP = 20.0
 alias DTYPE = DType.float64
+alias NELTS = simd_width_of[DTYPE]() * 2
 
 struct Heat2DJacobi(ImplicitlyCopyable, Movable):
     var T_curr: UnsafePointer[Scalar[DTYPE]]
@@ -40,32 +43,43 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
     @always_inline
     fn initialize_temperature(self):
         """Initialize temperature field."""
-        for i in range(SIZE):
-            self.T_curr[i] = INITIAL_TEMP
-        
+        @parameter
+        fn initial_temperature[width: Int](offset: Int):
+            self.T_curr.store[width=width](offset, INITIAL_TEMP)
+
+        vectorize[initial_temperature, NELTS](SIZE)
         memset_zero(self.T_next, SIZE)
 
 
     @always_inline
     fn apply_boundary_conditions(self, T: UnsafePointer[Scalar[DTYPE]]):
         """Apply Dirichlet boundary conditions to all four edges of the grid."""
-        for j in range(NY):
-            T[self.idx(0, j)] = 100.0       # Top
-            T[self.idx(NX - 1, j)] = 0.0    # Bottom
+        @parameter
+        fn apply_top_bottom[width: Int](offset: Int):
+            T.store[width=width](self.idx(0, offset), 100.0)    # Top
+            T.store[width=width](self.idx(NX - 1, offset), 0.0) # Bottom
             
-        for i in range(NX):
-            T[self.idx(i, 0)] = 0.0         # Left
-            T[self.idx(i, NY - 1)] = 50.0   # Right
+        vectorize[apply_top_bottom, NELTS](NY)
+
+        T.strided_store[width=NELTS](0.0, NY)                   # Left
+        T.offset(NY - 1).strided_store[width=NELTS](50.0, NY)   # Right
 
 
     @always_inline
     fn jacobi_update(self):
-        for i in range(1, NX - 1):
-            for j in range(1, NY - 1):
-                self.T_next[self.idx(i, j)] = (
-                    R_X * (self.T_curr[self.idx(i + 1, j)] + self.T_curr[self.idx(i - 1, j)]) +
-                    R_Y * (self.T_curr[self.idx(i, j + 1)] + self.T_curr[self.idx(i, j - 1)])
-                ) / CENTER_COEFF
+        for i in range(1, NX - 1):  # Skip boundaries
+            @parameter
+            fn process_cols[width: Int](offset: Int):
+                j = offset + 1
+                self.T_next.store[width=width](self.idx(i, j), (
+                    R_X * (self.T_curr.load[width=width](self.idx(i + 1, j)) +
+                           self.T_curr.load[width=width](self.idx(i - 1, j))) + 
+                    R_Y * (self.T_curr.load[width=width](self.idx(i, j + 1)) +
+                           self.T_curr.load[width=width](self.idx(i, j - 1))))
+                    / CENTER_COEFF
+                )
+
+            vectorize[process_cols, NELTS](NY - 2)  # NY - 2 interior columns to process per row
 
 
     @always_inline
@@ -74,14 +88,20 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
         norm2 = 0.0
 
         for i in range(1, NX - 1):
-            for j in range(1, NY - 1):
-                center = self.T_next[self.idx(i, j)]
+            @parameter
+            fn compute_residual[width: Int](offset: Int):
+                j = offset + 1
+                center = self.T_next.load[width=width](self.idx(i , j))
                 Ax = CENTER_COEFF * center - (
-                    R_X * (self.T_next[self.idx(i + 1, j)] + self.T_next[self.idx(i - 1,j)]) +
-                    R_Y * (self.T_next[self.idx(i, j + 1)] + self.T_next[self.idx(i, j - 1)]))
+                    R_X * (self.T_next.load[width=width](self.idx(i + 1, j)) +
+                           self.T_next.load[width=width](self.idx(i - 1, j))) +
+                    R_Y * (self.T_next.load[width=width](self.idx(i, j + 1)) +
+                           self.T_next.load[width=width](self.idx(i, j - 1)))
+                )
+                res2 += (Ax * Ax).reduce_add()
+                norm2 += (center * center).reduce_add()
 
-                res2 += Ax * Ax
-                norm2 += center * center
+            vectorize[compute_residual, NELTS](NY - 2)
                 
         return sqrt(res2 / norm2) if norm2 > 0 else sqrt(res2)
 
