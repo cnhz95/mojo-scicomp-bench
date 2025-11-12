@@ -11,6 +11,7 @@ alias WARMUP_ITERS = 5
 alias BENCHMARK_ITERS = 10
 alias DTYPE = DType.float64
 alias NELTS = simd_width_of[DTYPE]() * 2
+alias TILE_SIZE = 4
 alias FILL_VALUE = 4.0
 
 @always_inline
@@ -60,7 +61,6 @@ fn matmul_vectorized_parallelized_tiled(C: UnsafePointer[Scalar[DTYPE]], A: Unsa
                 fn dot[nelts: Int](n: Int):
                     C.store[width=nelts](m * N + n + x, C.load[width=nelts](m * N + n + x) + A[m * K + k] * B.load[width=nelts](k * N + n + x))
                 vectorize[dot, NELTS](tile_x)
-        alias TILE_SIZE = 4
         tile[calc_tile, NELTS * TILE_SIZE, TILE_SIZE](K, M)
     parallelize[calc_row](M, M)
 
@@ -77,7 +77,6 @@ fn matmul_vectorized_parallelized_tiled_unrolled(C: UnsafePointer[Scalar[DTYPE]]
                     C.store[width=nelts](m * N + n + x, C.load[width=nelts](m * N + n + x) + A[m * K + k] * B.load[width=nelts](k * N + n + x))
                 alias UNROLL_FACTOR = tile_x // NELTS
                 vectorize[dot, NELTS, unroll_factor=UNROLL_FACTOR](tile_x)
-        alias TILE_SIZE = 4
         tile[calc_tile, NELTS * TILE_SIZE, TILE_SIZE](K, M)
     parallelize[calc_row](M, M)
 
