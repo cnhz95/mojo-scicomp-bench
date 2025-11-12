@@ -153,7 +153,7 @@ fn main() raises:
             for m in range(M):
                 for n in range(N):
                     if np.abs(C_mojo[m * N + n] - C_numpy[m][n]) > 0.1:
-                        print("Error:")
+                        print("Error: Mismatch at (", m, ",", n, ") - Mojo=", C_mojo[m * N + n], ", NumPy=", C_numpy[m][n], sep="")
                         return
 
         if x == 0: print("\nBaseline", end=" ")
