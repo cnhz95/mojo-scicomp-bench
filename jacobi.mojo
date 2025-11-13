@@ -68,7 +68,7 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
 
 
     @always_inline
-    fn jacobi_update(self):
+    fn jacobi_iteration(self):
         """Jacobi iteration kernel."""
         @parameter
         fn process_row(t: Int):
@@ -131,7 +131,7 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
         memcpy(self.T_next, self.T_curr, SIZE)  # Initial guess: T_next = T_curr
 
         for iter in range(MAX_ITER):
-            self.jacobi_update()
+            self.jacobi_iteration()
             self.apply_boundary_conditions(self.T_next)
             res = self.residual_norm()
 
