@@ -37,7 +37,7 @@ fn fft(reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]],
             swap(reals[i], reals[j])
             swap(imags[i], imags[j])
     
-    parallelize[bit_reverse](N)  # The swaps are disjoint
+    parallelize[bit_reverse](N)  # Swaps are disjoint
 
     w_re = UnsafePointer[Float64].alloc(N // 2)
     w_im = UnsafePointer[Float64].alloc(N // 2)
@@ -102,10 +102,9 @@ fn main():
     reals = UnsafePointer[Scalar[DTYPE]].alloc(N)
     imags = UnsafePointer[Scalar[DTYPE]].alloc(N)
 
+    memset_zero(imags, N)
     for i in range(N):
         reals[i] = sin(2.0 * pi * Float64(i) / Float64(N))
-
-    memset_zero(imags, N)
 
     start_time = perf_counter()
     fft(reals, imags, inverse=False)
