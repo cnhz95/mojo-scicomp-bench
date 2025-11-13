@@ -58,26 +58,26 @@ fn fft(reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]],
         @parameter
         fn process_block(i: Int):
             @parameter
-            fn butterfly_computation[width: Int](j_offset: Int):
+            fn butterfly_computation[nelts: Int](j_offset: Int):
                 even_base = (i * len) + j_offset 
                 odd_base = even_base + half
                 w_base = j_offset * w_stride
 
-                var w_re = w_re.offset(w_base).strided_load[width=width](w_stride)
-                var w_im = w_im.offset(w_base).strided_load[width=width](w_stride)
+                var w_re = w_re.offset(w_base).strided_load[width=nelts](w_stride)  # Lexical scope
+                var w_im = w_im.offset(w_base).strided_load[width=nelts](w_stride)
                 
-                u_re = reals.load[width=width](even_base)
-                u_im = imags.load[width=width](even_base)
-                odd_re = reals.load[width=width](odd_base)
-                odd_im = imags.load[width=width](odd_base)
+                u_re = reals.load[width=nelts](even_base)
+                u_im = imags.load[width=nelts](even_base)
+                odd_re = reals.load[width=nelts](odd_base)
+                odd_im = imags.load[width=nelts](odd_base)
                 
                 v_re = odd_re * w_re - odd_im * w_im
                 v_im = odd_re * w_im + odd_im * w_re
                 
-                reals.store[width=width](even_base, u_re + v_re)
-                imags.store[width=width](even_base, u_im + v_im)
-                reals.store[width=width](odd_base, u_re - v_re)
-                imags.store[width=width](odd_base, u_im - v_im)
+                reals.store[width=nelts](even_base, u_re + v_re)
+                imags.store[width=nelts](even_base, u_im + v_im)
+                reals.store[width=nelts](odd_base, u_re - v_re)
+                imags.store[width=nelts](odd_base, u_im - v_im)
 
             vectorize[butterfly_computation, NELTS, unroll_factor=UNROLL_FACTOR](half)
 
@@ -88,9 +88,9 @@ fn fft(reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]],
     if inverse:
         scale = 1.0 / Float64(N)
         @parameter
-        fn normalize[width: Int](offset: Int):
-            reals.store[width=width](offset, reals.load[width=width](offset) * scale)
-            imags.store[width=width](offset, imags.load[width=width](offset) * scale)
+        fn normalize[nelts: Int](offset: Int):
+            reals.store[width=nelts](offset, reals.load[width=nelts](offset) * scale)
+            imags.store[width=nelts](offset, imags.load[width=nelts](offset) * scale)
         
         vectorize[normalize, NELTS, unroll_factor=UNROLL_FACTOR](N)
 
