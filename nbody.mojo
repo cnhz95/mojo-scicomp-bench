@@ -76,12 +76,12 @@ struct NBodySystem(Copyable, Movable):
             pos_z_i = self.pos_z[i]
 
             @parameter
-            fn calculate_force[width: Int](offset: Int):
-                dx_vec = self.pos_x.load[width=width](offset) - pos_x_i
-                dy_vec = self.pos_y.load[width=width](offset) - pos_y_i
-                dz_vec = self.pos_z.load[width=width](offset) - pos_z_i
-                mass_j_vec = self.mass.load[width=width](offset)
-                
+            fn calculate_force[nelts: Int](offset: Int):
+                dx_vec = self.pos_x.load[width=nelts](offset) - pos_x_i
+                dy_vec = self.pos_y.load[width=nelts](offset) - pos_y_i
+                dz_vec = self.pos_z.load[width=nelts](offset) - pos_z_i
+                mass_j_vec = self.mass.load[width=nelts](offset)
+
                 # Avoid self-interaction
                 indices = iota[DType.int32, width](offset)
                 mask_vec = SIMD[DType.bool, width](fill=(indices != i)).select(1.0, 0.0)
@@ -109,18 +109,18 @@ struct NBodySystem(Copyable, Movable):
         alias HALF_DT = 0.5 * DT
 
         @parameter
-        fn kick_step[width: Int](offset: Int):
-            self.vel_x.store[width=width](offset, self.vel_x.load[width=width](offset) + self.acc_x.load[width=width](offset) * HALF_DT)
-            self.vel_y.store[width=width](offset, self.vel_y.load[width=width](offset) + self.acc_y.load[width=width](offset) * HALF_DT)
-            self.vel_z.store[width=width](offset, self.vel_z.load[width=width](offset) + self.acc_z.load[width=width](offset) * HALF_DT)
+        fn kick_step[nelts: Int](offset: Int):
+            self.vel_x.store[width=nelts](offset, self.vel_x.load[width=nelts](offset) + self.acc_x.load[width=nelts](offset) * HALF_DT)
+            self.vel_y.store[width=nelts](offset, self.vel_y.load[width=nelts](offset) + self.acc_y.load[width=nelts](offset) * HALF_DT)
+            self.vel_z.store[width=nelts](offset, self.vel_z.load[width=nelts](offset) + self.acc_z.load[width=nelts](offset) * HALF_DT)
 
         vectorize[kick_step, NELTS, unroll_factor=UNROLL_FACTOR](N)
         
         @parameter
-        fn drift_step[width: Int](offset: Int):
-            self.pos_x.store[width=width](offset, self.pos_x.load[width=width](offset) + self.vel_x.load[width=width](offset) * DT)
-            self.pos_y.store[width=width](offset, self.pos_y.load[width=width](offset) + self.vel_y.load[width=width](offset) * DT)
-            self.pos_z.store[width=width](offset, self.pos_z.load[width=width](offset) + self.vel_z.load[width=width](offset) * DT)
+        fn drift_step[nelts: Int](offset: Int):
+            self.pos_x.store[width=nelts](offset, self.pos_x.load[width=nelts](offset) + self.vel_x.load[width=nelts](offset) * DT)
+            self.pos_y.store[width=nelts](offset, self.pos_y.load[width=nelts](offset) + self.vel_y.load[width=nelts](offset) * DT)
+            self.pos_z.store[width=nelts](offset, self.pos_z.load[width=nelts](offset) + self.vel_z.load[width=nelts](offset) * DT)
 
         vectorize[drift_step, NELTS, unroll_factor=UNROLL_FACTOR](N)
 
@@ -136,11 +136,11 @@ struct NBodySystem(Copyable, Movable):
         potential_energy = Atomic[DTYPE](0.0)
 
         @parameter
-        fn compute_kinetic_energy[width: Int](offset: Int):
-            vel_x_vec = self.vel_x.load[width=width](offset)
-            vel_y_vec = self.vel_y.load[width=width](offset)
-            vel_z_vec = self.vel_z.load[width=width](offset)
-            mass_vec = self.mass.load[width=width](offset)
+        fn compute_kinetic_energy[nelts: Int](offset: Int):
+            vel_x_vec = self.vel_x.load[width=nelts](offset)
+            vel_y_vec = self.vel_y.load[width=nelts](offset)
+            vel_z_vec = self.vel_z.load[width=nelts](offset)
+            mass_vec = self.mass.load[width=nelts](offset)
             vel_squared_vec = vel_x_vec * vel_x_vec + vel_y_vec * vel_y_vec + vel_z_vec * vel_z_vec
             
             # Kinetic energy: 0.5 * m * v^2
@@ -157,12 +157,12 @@ struct NBodySystem(Copyable, Movable):
             mass_i = self.mass[i]
 
             @parameter
-            fn compute_potential_energy[width: Int](offset: Int):
+            fn compute_potential_energy[nelts: Int](offset: Int):
                 j = i + 1 + offset  # Avoid double counting
-                dx_vec = self.pos_x.load[width=width](j) - pos_x_i
-                dy_vec = self.pos_y.load[width=width](j) - pos_y_i
-                dz_vec = self.pos_z.load[width=width](j) - pos_z_i
-                mass_j_vec = self.mass.load[width=width](j)
+                dx_vec = self.pos_x.load[width=nelts](j) - pos_x_i
+                dy_vec = self.pos_y.load[width=nelts](j) - pos_y_i
+                dz_vec = self.pos_z.load[width=nelts](j) - pos_z_i
+                mass_j_vec = self.mass.load[width=nelts](j)
 
                 distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING
                 distance_vec = sqrt(distance_squared_vec)
