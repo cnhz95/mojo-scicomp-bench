@@ -69,6 +69,7 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
 
     @always_inline
     fn jacobi_update(self):
+        """Jacobi iteration kernel."""
         @parameter
         fn process_row(t: Int):
             i = t + 1
@@ -89,6 +90,7 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
 
     @always_inline
     fn residual_norm(self) -> Float64:
+        """Compute the relative residual norm."""
         res_acc = Atomic[DTYPE](0.0)
         norm_acc = Atomic[DTYPE](0.0)
 
@@ -125,6 +127,7 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
 
     @always_inline
     fn solve(var self) -> Int:
+        """Solve the 2D heat equation using the Jacobi iterative method."""
         memcpy(self.T_next, self.T_curr, SIZE)  # Initial guess: T_next = T_curr
 
         for iter in range(MAX_ITER):
@@ -136,6 +139,7 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
                 swap(self.T_curr, self.T_next)
                 return iter + 1
 
+            # Continue iterating
             swap(self.T_curr, self.T_next)
 
         # Did not converge
@@ -144,6 +148,7 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
 
     @always_inline
     fn print_grid(self):
+        """Print the temperature grid."""
         for i in range(NX):
             for j in range(NY):
                 end = "\t" if j < NY - 1 else "\n"
