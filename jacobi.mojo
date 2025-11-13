@@ -46,8 +46,8 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
     fn initialize_temperature(self):
         """Initialize temperature field."""
         @parameter
-        fn initial_temperature[width: Int](offset: Int):
-            self.T_curr.store[width=width](offset, INITIAL_TEMP)
+        fn initial_temperature[nelts: Int](offset: Int):
+            self.T_curr.store[width=nelts](offset, INITIAL_TEMP)
 
         vectorize[initial_temperature, NELTS, unroll_factor=UNROLL_FACTOR](SIZE)
         memset_zero(self.T_next, SIZE)
@@ -57,9 +57,9 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
     fn apply_boundary_conditions(self, T: UnsafePointer[Scalar[DTYPE]]):
         """Apply Dirichlet boundary conditions to all four edges of the grid."""
         @parameter
-        fn apply_top_bottom[width: Int](offset: Int):
-            T.store[width=width](self.idx(0, offset), 100.0)    # Top
-            T.store[width=width](self.idx(NX - 1, offset), 0.0) # Bottom
+        fn apply_top_bottom[nelts: Int](offset: Int):
+            T.store[width=nelts](self.idx(0, offset), 100.0)    # Top
+            T.store[width=nelts](self.idx(NX - 1, offset), 0.0) # Bottom
             
         vectorize[apply_top_bottom, NELTS, unroll_factor=UNROLL_FACTOR](NY)
 
@@ -73,13 +73,13 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
         fn process_row(t: Int):
             i = t + 1
             @parameter
-            fn process_cols[width: Int](offset: Int):
+            fn process_cols[nelts: Int](offset: Int):
                 j = offset + 1
-                self.T_next.store[width=width](self.idx(i, j), (
-                    R_X * (self.T_curr.load[width=width](self.idx(i + 1, j)) +
-                           self.T_curr.load[width=width](self.idx(i - 1, j))) + 
-                    R_Y * (self.T_curr.load[width=width](self.idx(i, j + 1)) +
-                           self.T_curr.load[width=width](self.idx(i, j - 1))))
+                self.T_next.store[width=nelts](self.idx(i, j), (
+                    R_X * (self.T_curr.load[width=nelts](self.idx(i + 1, j)) +
+                           self.T_curr.load[width=nelts](self.idx(i - 1, j))) + 
+                    R_Y * (self.T_curr.load[width=nelts](self.idx(i, j + 1)) +
+                           self.T_curr.load[width=nelts](self.idx(i, j - 1))))
                     / CENTER_COEFF
                 )
 
@@ -99,20 +99,19 @@ struct Heat2DJacobi(ImplicitlyCopyable, Movable):
             local_norm_sum = 0.0
 
             @parameter
-            fn compute_residual[width: Int](offset: Int):
+            fn compute_residual[nelts: Int](offset: Int):
                 j = offset + 1
-                center = self.T_next.load[width=width](self.idx(i , j))
+                center = self.T_next.load[width=nelts](self.idx(i , j))
                 Ax = CENTER_COEFF * center - (
-                    R_X * (self.T_next.load[width=width](self.idx(i + 1, j)) +
-                           self.T_next.load[width=width](self.idx(i - 1, j))) +
-                    R_Y * (self.T_next.load[width=width](self.idx(i, j + 1)) +
-                           self.T_next.load[width=width](self.idx(i, j - 1)))
+                    R_X * (self.T_next.load[width=nelts](self.idx(i + 1, j)) +
+                           self.T_next.load[width=nelts](self.idx(i - 1, j))) +
+                    R_Y * (self.T_next.load[width=nelts](self.idx(i, j + 1)) +
+                           self.T_next.load[width=nelts](self.idx(i, j - 1)))
                 )
                 local_res_sum += (Ax * Ax).reduce_add()
                 local_norm_sum += (center * center).reduce_add()
 
             vectorize[compute_residual, NELTS, unroll_factor=UNROLL_FACTOR](NY - 2)
-
             _ = res_acc.fetch_add(local_res_sum)
             _ = norm_acc.fetch_add(local_norm_sum)
 
