@@ -4,15 +4,15 @@ from sys.info import simd_width_of
 from time import perf_counter
 from python import Python
 
-alias M = 1 << 20
-alias N = 1 << 20
-alias K = 1 << 20
+alias M = 1 << 14
+alias N = 1 << 14
+alias K = 1 << 14
 alias WARMUP_ITERS = 5
 alias BENCHMARK_ITERS = 10
 alias DTYPE = DType.float64
 alias NELTS = simd_width_of[DTYPE]() * 2
 alias TILE_SIZE = 4
-alias FILL_VALUE = 4.0
+alias INITIAL_VALUE = 4.0
 
 @always_inline
 fn matmul_baseline(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
@@ -104,10 +104,9 @@ fn main() raises:
         end_time = perf_counter()
         times_numpy[i] = end_time - start_time
 
-    numpy_mean = np.round(np.mean(times_numpy), 4)
-
+    numpy_mean = np.mean(times_numpy)
     print("NumPy Matrix Multiplication")
-    print("Mean time:\t", numpy_mean, "s")
+    print("Mean time:\t", np.round(numpy_mean, 4), "s")
     print("Std dev:\t", np.round(np.std(times_numpy), 4), "s")
 
 
@@ -162,8 +161,8 @@ fn main() raises:
         if x == 4: print("\nVectorized+Parallelized+Tiled+Unrolled", end=" ")
         print("Mojo Matrix Multiplication")
 
-        mojo_mean = np.round(np.mean(times_mojo), 4)
-        print("Mean time:\t", mojo_mean, "s")
+        mojo_mean = np.mean(times_mojo)
+        print("Mean time:\t", np.round(mojo_mean, 4), "s")
         print("Std dev:\t", np.round(np.std(times_mojo), 4), "s")
         print(numpy_mean / mojo_mean, "x speedup over NumPy", sep="")
 
