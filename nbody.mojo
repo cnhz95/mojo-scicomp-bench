@@ -131,7 +131,7 @@ struct NBodySystem(Copyable, Movable):
         
 
     @always_inline
-    fn compute_total_energy(self) -> Float64:
+    fn compute_energy(self) -> Float64:
         kinetic_energy = 0.0
         potential_energy = Atomic[DTYPE](0.0)
 
@@ -192,14 +192,14 @@ fn main() raises:
 
     n_body_system = NBodySystem()    
     n_body_system.calculate_forces()
-    initial_energy = n_body_system.compute_total_energy()
+    initial_energy = n_body_system.compute_energy()
 
     start_time = perf_counter()
     for _ in range(BENCHMARK_STEPS):
         n_body_system.leapfrog_integration()
     end_time = perf_counter()
     
-    final_energy = n_body_system.compute_total_energy()
+    final_energy = n_body_system.compute_energy()
 
     relative_error = abs(final_energy - initial_energy) / abs(initial_energy)
     energy_drift = round(relative_error * 100, 4)
