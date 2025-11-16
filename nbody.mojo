@@ -64,7 +64,7 @@ struct NBodySystem(Copyable, Movable):
 
 
     @always_inline
-    fn calculate_forces(self):
+    fn compute_acceleration(self):
         @parameter
         fn process_particle(i: Int):
             acc_x_local = 0.0
@@ -125,7 +125,7 @@ struct NBodySystem(Copyable, Movable):
         vectorize[drift_step, NELTS, unroll_factor=UNROLL_FACTOR](N)
 
         self.reset_acceleration()
-        self.calculate_forces()
+        self.compute_acceleration()
 
         vectorize[kick_step, NELTS, unroll_factor=UNROLL_FACTOR](N)
         
@@ -191,7 +191,7 @@ fn main() raises:
         warmup_system.advance()
 
     n_body_system = NBodySystem()    
-    n_body_system.calculate_forces()
+    n_body_system.compute_acceleration()
     initial_energy = n_body_system.compute_energy()
 
     start_time = perf_counter()
