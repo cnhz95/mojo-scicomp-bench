@@ -7,8 +7,8 @@ from python import Python
 alias M = 1 << 12
 alias N = 1 << 12
 alias K = 1 << 12
-alias WARMUP_ITERS = 3
-alias BENCHMARK_ITERS = 10
+alias WARMUP_RUNS = 3
+alias BENCHMARK_RUNS = 10
 alias DTYPE = DType.float64
 alias NELTS = simd_width_of[DTYPE]() * 2
 alias TILE_SIZE = 4
@@ -92,12 +92,12 @@ fn main() raises:
     A_numpy = np.full(Python.tuple(M, K), 3.14, dtype=np.float64)
     B_numpy = np.full(Python.tuple(K, N), 3.14, dtype=np.float64)
 
-    for _ in range(WARMUP_ITERS):
+    for _ in range(WARMUP_RUNS):
         _ = np.matmul(A_numpy, B_numpy)
 
     # Benchmark NumPy
-    times_numpy = np.zeros(BENCHMARK_ITERS)
-    for i in range(BENCHMARK_ITERS):
+    times_numpy = np.zeros(BENCHMARK_RUNS)
+    for i in range(BENCHMARK_RUNS):
         start_time = perf_counter()
         C_numpy = np.matmul(A_numpy, B_numpy)
         end_time = perf_counter()
@@ -123,6 +123,7 @@ fn main() raises:
     A_mojo = UnsafePointer[Scalar[DTYPE]].alloc(M * K)
     B_mojo = UnsafePointer[Scalar[DTYPE]].alloc(K * N)
 
+    # Initialize matrices A and B
     for m in range(M):
         for k in range(K):
             A_mojo[m * K + k] = 3.14
@@ -130,15 +131,15 @@ fn main() raises:
         for n in range(N):
             B_mojo[k * N + n] = 3.14
 
-    # Benchmark Mojo
     for x, func in enumerate(funcs):
-        for _ in range(WARMUP_ITERS):
+        for _ in range(WARMUP_RUNS):
             memset_zero(C_mojo, M * N)
 
             func(C_mojo, A_mojo, B_mojo)
 
-        times_mojo = np.zeros(BENCHMARK_ITERS)
-        for i in range(BENCHMARK_ITERS):
+        # Benchmark Mojo implementation
+        times_mojo = np.zeros(BENCHMARK_RUNS)
+        for i in range(BENCHMARK_RUNS):
             memset_zero(C_mojo, M * N)
 
             start_time = perf_counter()
@@ -162,7 +163,7 @@ fn main() raises:
 
         mojo_mean = np.mean(times_mojo)
         print("Mean time:\t", np.round(mojo_mean, 4), "s")
-        print("Std dev:\t", np.round(np.std(times_mojo, ddof=1), 4), "s")   
+        print("Std dev:\t", np.round(np.std(times_mojo, ddof=1), 4), "s")
         print("Speedup:\t ", np.round(numpy_mean / mojo_mean, 4), "x", sep="")
 
     C_mojo.free()
