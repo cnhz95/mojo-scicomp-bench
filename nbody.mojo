@@ -105,7 +105,7 @@ struct NBodySystem(Copyable, Movable):
 
 
     @always_inline
-    fn leapfrog_integration(self):
+    fn advance(self):
         alias HALF_DT = 0.5 * DT
 
         @parameter
@@ -188,7 +188,7 @@ struct NBodySystem(Copyable, Movable):
 fn main() raises:
     warmup_system = NBodySystem()
     for _ in range(WARMUP_STEPS):
-        warmup_system.leapfrog_integration()
+        warmup_system.advance()
 
     n_body_system = NBodySystem()    
     n_body_system.calculate_forces()
@@ -196,7 +196,7 @@ fn main() raises:
 
     start_time = perf_counter()
     for _ in range(BENCHMARK_STEPS):
-        n_body_system.leapfrog_integration()
+        n_body_system.advance()
     end_time = perf_counter()
     
     final_energy = n_body_system.compute_energy()
