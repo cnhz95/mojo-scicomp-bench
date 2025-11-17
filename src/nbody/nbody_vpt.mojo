@@ -64,11 +64,8 @@ struct NBodySystem(NBody):
     @always_inline
     fn compute_acceleration(self):
         """Compute gravitational acceleration."""
-        num_i_tiles = (N + TILE_SIZE - 1) // TILE_SIZE
-        num_j_tiles = (N + TILE_SIZE - 1) // TILE_SIZE
-
         @parameter
-        fn process_i_tile(tile_idx: Int):
+        fn compute_acceleration_for_tile(tile_idx: Int):
             i_start = tile_idx * TILE_SIZE
             i_end = min(i_start + TILE_SIZE, N)
 
@@ -79,6 +76,7 @@ struct NBodySystem(NBody):
                 acc_x_local = 0.0
                 acc_y_local = 0.0
                 acc_z_local = 0.0
+                num_j_tiles = (N + TILE_SIZE - 1) // TILE_SIZE
 
                 for j_tile in range(num_j_tiles):
                     j_start = j_tile * TILE_SIZE
@@ -111,7 +109,8 @@ struct NBodySystem(NBody):
                 self.acc_y[i] = acc_y_local
                 self.acc_z[i] = acc_z_local
 
-        parallelize[process_i_tile](num_i_tiles)
+        num_i_tiles = (N + TILE_SIZE - 1) // TILE_SIZE
+        parallelize[compute_acceleration_for_tile](num_i_tiles)
 
 
     @always_inline
@@ -161,7 +160,7 @@ struct NBodySystem(NBody):
         vectorize[accumulate_kinetic_energy, NELTS](N)
         
         @parameter
-        fn compute_contributions(tile_idx: Int):
+        fn accumulate_potential_for_tile(tile_idx: Int):
             i_start = tile_idx * TILE_SIZE
             i_end = min(i_start + TILE_SIZE, N)
             tile_potential_energy = 0.0
@@ -201,7 +200,7 @@ struct NBodySystem(NBody):
             _ = potential_energy.fetch_add(tile_potential_energy)
 
         num_i_tiles = (N + TILE_SIZE - 1) // TILE_SIZE
-        parallelize[compute_contributions](num_i_tiles)
+        parallelize[accumulate_potential_for_tile](num_i_tiles)
 
         return kinetic_energy + potential_energy.load()
 
