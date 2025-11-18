@@ -2,13 +2,13 @@ from memory import memset_zero, memcpy
 from math import sqrt
 from nbody_trait import NBody
 
-alias N = 1 << 10
 alias G = 1.0
 alias DT = 0.01
 alias SOFTENING = 0.001
 alias DTYPE = DType.float64
 
 struct NBodySystem(NBody):
+    var N: Int
     var pos_x: UnsafePointer[Scalar[DTYPE]]
     var pos_y: UnsafePointer[Scalar[DTYPE]]
     var pos_z: UnsafePointer[Scalar[DTYPE]]
@@ -21,25 +21,26 @@ struct NBodySystem(NBody):
     var mass: UnsafePointer[Scalar[DTYPE]]
 
 
-    fn __init__(out self, pos: UnsafePointer[Scalar[DTYPE]], vel: UnsafePointer[Scalar[DTYPE]], mass: UnsafePointer[Scalar[DTYPE]]):
-        self.pos_x = UnsafePointer[Scalar[DTYPE]].alloc(N)
-        self.pos_y = UnsafePointer[Scalar[DTYPE]].alloc(N)
-        self.pos_z = UnsafePointer[Scalar[DTYPE]].alloc(N)
-        self.vel_x = UnsafePointer[Scalar[DTYPE]].alloc(N)
-        self.vel_y = UnsafePointer[Scalar[DTYPE]].alloc(N)
-        self.vel_z = UnsafePointer[Scalar[DTYPE]].alloc(N)
-        self.acc_x = UnsafePointer[Scalar[DTYPE]].alloc(N)
-        self.acc_y = UnsafePointer[Scalar[DTYPE]].alloc(N)
-        self.acc_z = UnsafePointer[Scalar[DTYPE]].alloc(N)
-        self.mass = UnsafePointer[Scalar[DTYPE]].alloc(N)
+    fn __init__(out self, N: Int, pos: UnsafePointer[Scalar[DTYPE]], vel: UnsafePointer[Scalar[DTYPE]], mass: UnsafePointer[Scalar[DTYPE]]):
+        self.N = N
+        self.pos_x = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
+        self.pos_y = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
+        self.pos_z = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
+        self.vel_x = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
+        self.vel_y = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
+        self.vel_z = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
+        self.acc_x = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
+        self.acc_y = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
+        self.acc_z = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
+        self.mass = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
 
-        memcpy(self.pos_x, pos, N)
-        memcpy(self.pos_y, pos + N, N)
-        memcpy(self.pos_z, pos + 2 * N, N)
-        memcpy(self.vel_x, vel, N)
-        memcpy(self.vel_y, vel + N, N)
-        memcpy(self.vel_z, vel + 2 * N, N)
-        memcpy(self.mass, mass, N)
+        memcpy(self.pos_x, pos, self.N)
+        memcpy(self.pos_y, pos + self.N, self.N)
+        memcpy(self.pos_z, pos + 2 * self.N, self.N)
+        memcpy(self.vel_x, vel, self.N)
+        memcpy(self.vel_y, vel + self.N, self.N)
+        memcpy(self.vel_z, vel + 2 * self.N, self.N)
+        memcpy(self.mass, mass, self.N)
         self.reset_acceleration()
 
 
@@ -59,12 +60,12 @@ struct NBodySystem(NBody):
     @always_inline
     fn compute_acceleration(self):
         """Compute gravitational acceleration."""
-        for i in range(N):
+        for i in range(self.N):
             pos_x_i = self.pos_x[i]
             pos_y_i = self.pos_y[i]
             pos_z_i = self.pos_z[i]
 
-            for j in range(N):
+            for j in range(self.N):
                 if i == j:  # Skip self-interaction
                     continue
                 dx = self.pos_x[j] - pos_x_i
@@ -86,14 +87,14 @@ struct NBodySystem(NBody):
 
         @parameter
         fn kick_step():
-            for i in range(N):
+            for i in range(self.N):
                 self.vel_x[i] += self.acc_x[i] * HALF_DT
                 self.vel_y[i] += self.acc_y[i] * HALF_DT
                 self.vel_z[i] += self.acc_z[i] * HALF_DT
 
         @parameter
         fn drift_step():
-            for i in range(N):
+            for i in range(self.N):
                 self.pos_x[i] += self.vel_x[i] * DT
                 self.pos_y[i] += self.vel_y[i] * DT
                 self.pos_z[i] += self.vel_z[i] * DT
@@ -110,7 +111,7 @@ struct NBodySystem(NBody):
         """Compute total system energy (kinetic + potential)."""
         energy = 0.0
 
-        for i in range(N):
+        for i in range(self.N):
             vel_x_i = self.vel_x[i]
             vel_y_i = self.vel_y[i]
             vel_z_i = self.vel_z[i]
@@ -119,7 +120,7 @@ struct NBodySystem(NBody):
             # Kinetic energy: 0.5 * m * v^2
             energy += 0.5 * mass_i * (vel_x_i * vel_x_i + vel_y_i * vel_y_i + vel_z_i * vel_z_i)
 
-            for j in range(i + 1, N):
+            for j in range(i + 1, self.N):
                 dx = self.pos_x[j] - self.pos_x[i]
                 dy = self.pos_y[j] - self.pos_y[i]
                 dz = self.pos_z[j] - self.pos_z[i]
@@ -134,6 +135,6 @@ struct NBodySystem(NBody):
 
     @always_inline
     fn reset_acceleration(self):
-        memset_zero(self.acc_x, N)
-        memset_zero(self.acc_y, N)
-        memset_zero(self.acc_z, N)
+        memset_zero(self.acc_x, self.N)
+        memset_zero(self.acc_y, self.N)
+        memset_zero(self.acc_z, self.N)

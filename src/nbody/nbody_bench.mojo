@@ -5,7 +5,7 @@ from nbody_vpt import NBodySystem as nbody_vpt
 from nbody_vptu import NBodySystem as nbody_vptu
 from nbody_trait import NBody
 from time import perf_counter
-from testing import assert_true
+from testing.testing import assert_true
 from python import Python
 
 alias N = 1 << 10
@@ -55,7 +55,7 @@ fn main() raises:
 
     times_numpy = np.zeros(NUM_RUNS)
     for i in range(NUM_RUNS):
-        system_numpy = nbody_numpy.NBodySystem(pos_data, vel_data, acc_data, mass_data)
+        system_numpy = nbody_numpy.NBodySystem(N, pos_data, vel_data, acc_data, mass_data)
         system_numpy.compute_acceleration()
 
         # Warmup
@@ -101,9 +101,9 @@ fn main() raises:
     for x in range(5):
         for i in range(NUM_RUNS):
             if x == 0: times_mojo[i] = benchmark(nbody_baseline(pos_mojo, vel_mojo, mass_mojo, N))
-            if x == 1: times_mojo[i] = benchmark(nbody_v(pos_mojo, vel_mojo, mass_mojo))
-            if x == 2: times_mojo[i] = benchmark(nbody_vp(pos_mojo, vel_mojo, mass_mojo))
-            if x == 3: times_mojo[i] = benchmark(nbody_vpt(pos_mojo, vel_mojo, mass_mojo))
+            if x == 1: times_mojo[i] = benchmark(nbody_v(pos_mojo, vel_mojo, mass_mojo, N))
+            if x == 2: times_mojo[i] = benchmark(nbody_vp(pos_mojo, vel_mojo, mass_mojo, N))
+            if x == 3: times_mojo[i] = benchmark(nbody_vpt(pos_mojo, vel_mojo, mass_mojo, N))
             if x == 4: times_mojo[i] = benchmark(nbody_vptu(pos_mojo, vel_mojo, mass_mojo, N))
 
         if x == 0: print("\nBaseline", end=" ")
