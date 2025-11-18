@@ -7,8 +7,8 @@ from nbody_trait import NBody
 
 alias N = 1 << 10
 alias G = 1.0
-alias DT = 0.0001
-alias SOFTENING = 0.005
+alias DT = 0.01
+alias SOFTENING = 0.001
 alias DTYPE = DType.float64
 alias NELTS = simd_width_of[DTYPE]() * 2
 alias TILE_SIZE = 64

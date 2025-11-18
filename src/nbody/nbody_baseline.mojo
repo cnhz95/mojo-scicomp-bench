@@ -4,8 +4,8 @@ from nbody_trait import NBody
 
 alias N = 1 << 10
 alias G = 1.0
-alias DT = 0.0001
-alias SOFTENING = 0.01
+alias DT = 0.01
+alias SOFTENING = 0.001
 alias DTYPE = DType.float64
 
 struct NBodySystem(NBody):
