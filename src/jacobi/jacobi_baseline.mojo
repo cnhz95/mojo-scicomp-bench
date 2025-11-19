@@ -60,7 +60,7 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
 
 
     @always_inline
-    fn jacobi_iteration(self):
+    fn jacobi_update(self):
         """Core Jacobi iteration kernel."""
         # Update interior points
         for i in range(1, self.NX - 1):
@@ -98,7 +98,7 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
 
         # Jacobi iteration loop
         for iter in range(MAX_ITER):
-            self.jacobi_iteration()
+            self.jacobi_update()
             self.apply_boundary_conditions(self.T_next)
             res = self.residual_norm()
 
