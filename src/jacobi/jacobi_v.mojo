@@ -30,6 +30,10 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
         self.apply_boundary_conditions(self.T_curr)
 
 
+    fn __getitem__(self, i: Int, j: Int) -> Float64:
+        return self.T_curr[self.idx(i, j)]
+
+
     fn __del__(deinit self):
         self.T_curr.free()
         self.T_next.free()
@@ -97,7 +101,7 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
         # Compute residual over interior points
         for i in range(1, self.NX - 1):
             @parameter
-            fn compute_residual_segment[width: Int](offset: Int):
+            fn compute_residual_segment[width: Int](offset: Int):  # Row segment (j = 1..NY-2)
                 j = offset + 1
                 center = self.T_next.load[width=width](self.idx(i , j))
                 Ax = CENTER_COEFF * center - (

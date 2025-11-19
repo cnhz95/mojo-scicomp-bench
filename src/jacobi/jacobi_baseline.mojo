@@ -25,6 +25,10 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
         self.T_next = UnsafePointer[Scalar[DTYPE]].alloc(self.NX * self.NY)
         self.initialize_temperature()
         self.apply_boundary_conditions(self.T_curr)
+
+
+    fn __getitem__(self, i: Int, j: Int) -> Float64:
+        return self.T_curr[self.idx(i, j)]
         
 
     fn __del__(deinit self):
