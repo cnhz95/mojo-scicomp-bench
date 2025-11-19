@@ -152,8 +152,3 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
 
         # Did not converge
         return MAX_ITER
-        
-    
-    @always_inline
-    fn get_grid(self) -> UnsafePointer[Scalar[DTYPE]]:
-        return self.T_curr
