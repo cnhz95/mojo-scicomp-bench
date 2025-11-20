@@ -29,8 +29,8 @@ fn matmul_v(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B:
         for k in range(K):
             a_mk = A[m * K + k]
             @parameter  # Parametric closure
-            fn dot[nelts: Int](n: Int):
-                C.store[width=nelts](m * N + n, C.load[width=nelts](m * N + n) + a_mk * B.load[width=nelts](k * N + n))
+            fn dot[width: int](n: Int):
+                C.store[width=width](m * N + n, C.load[width=width](m * N + n) + a_mk * B.load[width=width](k * N + n))
             vectorize[dot, NELTS](M)
 
 
@@ -41,8 +41,8 @@ fn matmul_vp(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B
         for k in range(K):
             a_mk = A[m * K + k]
             @parameter
-            fn dot[nelts: Int](n: Int):
-                C.store[width=nelts](m * N + n, C.load[width=nelts](m * N + n) + a_mk * B.load[width=nelts](k * N + n))
+            fn dot[width: int](n: Int):
+                C.store[width=width](m * N + n, C.load[width=width](m * N + n) + a_mk * B.load[width=width](k * N + n))
             vectorize[dot, NELTS](M)
     parallelize[calc_row](M, M)
 
@@ -62,8 +62,8 @@ fn matmul_vpt(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], 
             for k in range(y, y + tile_y):
                 a_mk = A[m * K + k]
                 @parameter
-                fn dot[nelts: Int](n: Int):
-                    C.store[width=nelts](m * N + n + x, C.load[width=nelts](m * N + n + x) + a_mk * B.load[width=nelts](k * N + n + x))
+                fn dot[width: int](n: Int):
+                    C.store[width=width](m * N + n + x, C.load[width=width](m * N + n + x) + a_mk * B.load[width=width](k * N + n + x))
                 vectorize[dot, NELTS](tile_x)
         tile[calc_tile, NELTS * TILE_SIZE, TILE_SIZE](K, M)
     parallelize[calc_row](M, M)
@@ -78,8 +78,8 @@ fn matmul_vptu(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]],
             for k in range(y, y + tile_y):
                 a_mk = A[m * K + k]
                 @parameter
-                fn dot[nelts: Int](n: Int):
-                    C.store[width=nelts](m * N + n + x, C.load[width=nelts](m * N + n + x) + a_mk * B.load[width=nelts](k * N + n + x))
+                fn dot[width: int](n: Int):
+                    C.store[width=width](m * N + n + x, C.load[width=width](m * N + n + x) + a_mk * B.load[width=width](k * N + n + x))
                 alias UNROLL_FACTOR = tile_x // NELTS
                 vectorize[dot, NELTS, unroll_factor=UNROLL_FACTOR](tile_x)
         tile[calc_tile, NELTS * TILE_SIZE, TILE_SIZE](K, M)
