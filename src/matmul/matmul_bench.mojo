@@ -1,6 +1,7 @@
 from algorithm.functional import vectorize, parallelize, Static2DTileUnitFunc
 from memory import memset_zero
 from sys.info import simd_width_of
+from testing.testing import assert_true
 from time import perf_counter
 from python import Python
 
@@ -149,9 +150,10 @@ fn main() raises:
             # Verify against NumPy baseline
             for m in range(M):
                 for n in range(N):
-                    if np.abs(C_mojo[m * N + n] - C_numpy[m][n]) > 1e-8:
-                        print("Error: Mismatch at (", m, ",", n, ") - Mojo=", C_mojo[m * N + n], ", NumPy=", C_numpy[m][n], sep="")
-                        return
+                    assert_true(abs(C_mojo[m * N + n] - Float64(C_numpy[m][n])) > 1e-8,
+                        msg="Mismatch at (" + String(m) + "," + String(n) +
+                        ") - Mojo=" + String(C_mojo[m * N + n]) + ", NumPy=" + String(C_numpy[m][n])
+                    )
 
         if x == 0: print("\nBaseline", end=" ")
         if x == 1: print("\nVectorized", end=" ")
