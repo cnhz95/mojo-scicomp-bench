@@ -49,7 +49,7 @@ fn main() raises:
     reals_mojo = UnsafePointer[Scalar[DTYPE]].alloc(N)
     imags_mojo = UnsafePointer[Scalar[DTYPE]].alloc(N)
 
-    # Access the raw pointer to the underlying storage
+    # Access the raw pointer
     memcpy(reals_mojo_ref, sine_wave.ctypes.data.unsafe_get_as_pointer[DTYPE](), N)
 
     # Benchmark
@@ -59,7 +59,7 @@ fn main() raises:
             memcpy(reals_mojo, reals_mojo_ref, N)
             memset_zero(imags_mojo, N)
 
-            func(N, reals_mojo, imags_mojo, inverse=False)
+            func(N, reals_mojo, imags_mojo)
 
         # Benchmark Mojo implemenation
         times_mojo = np.zeros(BENCHMARK_RUNS)
@@ -68,7 +68,7 @@ fn main() raises:
             memset_zero(imags_mojo, N)
 
             start_time = perf_counter()
-            func(N, reals_mojo, imags_mojo, inverse=False)
+            func(N, reals_mojo, imags_mojo)
             end_time = perf_counter()
             times_mojo[i] = end_time - start_time
 
