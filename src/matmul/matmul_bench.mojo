@@ -23,7 +23,7 @@ fn matmul_baseline(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYP
 
 
 @always_inline
-fn matmul_vectorized(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
+fn matmul_v(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
     for m in range(M):
         for k in range(K):
             a_mk = A[m * K + k]
@@ -34,7 +34,7 @@ fn matmul_vectorized(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DT
 
 
 @always_inline
-fn matmul_vectorized_parallelized(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
+fn matmul_vp(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
     @parameter
     fn calc_row(m: Int):
         for k in range(K):
@@ -53,7 +53,7 @@ fn tile[tiled_fn: Static2DTileUnitFunc, tile_x: Int, tile_y: Int](end_x: Int, en
             tiled_fn[tile_x, tile_y](x, y)
 
 @always_inline
-fn matmul_vectorized_parallelized_tiled(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
+fn matmul_vpt(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
     @parameter
     fn calc_row(m: Int):
         @parameter
@@ -69,7 +69,7 @@ fn matmul_vectorized_parallelized_tiled(C: UnsafePointer[Scalar[DTYPE]], A: Unsa
 
 
 @always_inline
-fn matmul_vectorized_parallelized_tiled_unrolled(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
+fn matmul_vptu(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
     @parameter
     fn calc_row(m: Int):
         @parameter
@@ -88,10 +88,13 @@ fn matmul_vectorized_parallelized_tiled_unrolled(C: UnsafePointer[Scalar[DTYPE]]
 fn main() raises:
     np = Python.import_module("numpy")
 
+    ### NUMPY ###
+
     C_numpy = np.zeros(Python.tuple(M, N))
     A_numpy = np.full(Python.tuple(M, K), 3.14, dtype=np.float64)
     B_numpy = np.full(Python.tuple(K, N), 3.14, dtype=np.float64)
 
+    # Warmup
     for _ in range(WARMUP_RUNS):
         _ = np.matmul(A_numpy, B_numpy)
 
@@ -111,14 +114,6 @@ fn main() raises:
 
     ### MOJO ###
 
-    funcs = [
-        matmul_baseline,
-        matmul_vectorized,
-        matmul_vectorized_parallelized,
-        matmul_vectorized_parallelized_tiled,
-        matmul_vectorized_parallelized_tiled_unrolled
-    ]
-
     C_mojo = UnsafePointer[Scalar[DTYPE]].alloc(M * N)
     A_mojo = UnsafePointer[Scalar[DTYPE]].alloc(M * K)
     B_mojo = UnsafePointer[Scalar[DTYPE]].alloc(K * N)
@@ -131,7 +126,11 @@ fn main() raises:
         for n in range(N):
             B_mojo[k * N + n] = 3.14
 
+    funcs = [matmul_baseline, matmul_v, matmul_vp, matmul_vpt, matmul_vptu]
+
+    # Benchmark
     for x, func in enumerate(funcs):
+        # Warmup
         for _ in range(WARMUP_RUNS):
             memset_zero(C_mojo, M * N)
 
