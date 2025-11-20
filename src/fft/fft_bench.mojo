@@ -8,14 +8,15 @@ from testing.testing import assert_true
 from time import perf_counter
 from python import Python
 
-alias N = 1 << 10
+alias N = 1 << 20
 alias WARMUP_RUNS = 3
 alias BENCHMARK_RUNS = 10
 alias DTYPE = DType.float64
 
-
 fn main() raises:
     np = Python.import_module("numpy")
+
+    ### NUMPY ###
 
     sine_wave = np.zeros(N)
     for i in range(N):
@@ -51,8 +52,8 @@ fn main() raises:
     # Access the raw pointer to the underlying storage
     memcpy(reals_mojo_ref, sine_wave.ctypes.data.unsafe_get_as_pointer[DTYPE](), N)
 
+    # Benchmark
     for x, func in enumerate(funcs):
-
         # Warmup
         for _ in range(WARMUP_RUNS):
             memcpy(reals_mojo, reals_mojo_ref, N)
@@ -60,7 +61,7 @@ fn main() raises:
 
             func(N, reals_mojo, imags_mojo, inverse=False)
 
-        # Benchmark Mojo
+        # Benchmark Mojo implemenation
         times_mojo = np.zeros(BENCHMARK_RUNS)
         for i in range(BENCHMARK_RUNS):
             memcpy(reals_mojo, reals_mojo_ref, N)
@@ -74,7 +75,7 @@ fn main() raises:
             # Verify against NumPy baseline
             for i in range(N):
                 err = abs(reals_mojo[i] - Float64(output_numpy.real[i])) + abs(imags_mojo[i] - Float64(output_numpy.imag[i]))
-                assert_true(err < 1e-12, msg="Mismatch of" + String(err) + "at position" + String(i))
+                assert_true(err < 1e-12, msg="Mismatch of " + String(err) + " at position " + String(i))
 
         if x == 0: print("\nBaseline", end=" ")
         if x == 1: print("\nVectorized", end=" ")
