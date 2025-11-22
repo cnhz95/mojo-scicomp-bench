@@ -18,7 +18,11 @@ fn bit_reverse(x: Int, num_bits: Int) -> Int:
 
 
 @always_inline
-fn fft(N: Int, reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]]) raises:
+fn fft(
+    N: Int,
+    reals: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external],
+    imags: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+) raises:
     """Iterative Cooley-Tukey radix-2 FFT."""
     assert_true(N > 0 and (N & (N - 1)) == 0, msg="N must be a power of 2")
 
@@ -31,8 +35,8 @@ fn fft(N: Int, reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[
             swap(reals[i], reals[j])
             swap(imags[i], imags[j])
 
-    w_re = UnsafePointer[Float64].alloc(N // 2)
-    w_im = UnsafePointer[Float64].alloc(N // 2)
+    w_re = alloc[Float64](N // 2)
+    w_im = alloc[Float64](N // 2)
     
     # Precompute twiddle table
     for k in range(N // 2):
@@ -47,7 +51,7 @@ fn fft(N: Int, reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[
 
         # Process all groups at this stage
         for i in range(0, N, len):
-            # Butterfly operations within group
+            # Perform butterfly operations within group
             @parameter
             fn butterfly_segment[width: Int](j_offset: Int):
                 even_idx = i + j_offset
@@ -62,9 +66,11 @@ fn fft(N: Int, reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[
                 odd_re = reals.load[width=width](odd_idx)
                 odd_im = imags.load[width=width](odd_idx)
                 
+                # Complex multiply
                 v_re = odd_re * w_re_vec - odd_im * w_im_vec
                 v_im = odd_re * w_im_vec + odd_im * w_re_vec
                 
+                # Butterfly operations
                 reals.store[width=width](even_idx, u_re + v_re)
                 imags.store[width=width](even_idx, u_im + v_im)
                 reals.store[width=width](odd_idx, u_re - v_re)

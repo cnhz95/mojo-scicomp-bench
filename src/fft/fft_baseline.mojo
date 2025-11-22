@@ -14,7 +14,11 @@ fn bit_reverse(x: Int, num_bits: Int) -> Int:
 
 
 @always_inline
-fn fft(N: Int, reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]]) raises:
+fn fft(
+    N: Int,
+    reals: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external],
+    imags: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+) raises:
     """Iterative Cooley-Tukey radix-2 FFT."""
     assert_true(N > 0 and (N & (N - 1)) == 0, msg="N must be a power of 2")
 
@@ -27,8 +31,8 @@ fn fft(N: Int, reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[
             swap(reals[i], reals[j])
             swap(imags[i], imags[j])
 
-    w_re = UnsafePointer[Float64].alloc(N // 2)
-    w_im = UnsafePointer[Float64].alloc(N // 2)
+    w_re = alloc[Float64](N // 2)
+    w_im = alloc[Float64](N // 2)
     
     # Precompute twiddle table
     for k in range(N // 2):
@@ -43,7 +47,7 @@ fn fft(N: Int, reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[
 
         # Process all groups at this stage
         for i in range(0, N, len):
-            # Butterfly operations within group
+            # Perform butterfly operations within group
             for j in range(half):
                 even_idx = i + j
                 odd_idx = even_idx + half
@@ -51,9 +55,12 @@ fn fft(N: Int, reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[
 
                 u_re = reals[even_idx]
                 u_im = imags[even_idx]
+
+                # Complex multiply
                 v_re = reals[odd_idx] * w_re[w_idx] - imags[odd_idx] * w_im[w_idx]
                 v_im = reals[odd_idx] * w_im[w_idx] + imags[odd_idx] * w_re[w_idx]
                 
+                # Butterfly operations
                 reals[even_idx] = u_re + v_re
                 imags[even_idx] = u_im + v_im
                 reals[odd_idx] = u_re - v_re

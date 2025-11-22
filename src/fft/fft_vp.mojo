@@ -17,7 +17,11 @@ fn bit_reverse(x: Int, num_bits: Int) -> Int:
 
 
 @always_inline
-fn fft(N: Int, reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[DTYPE]]) raises:
+fn fft(
+    N: Int,
+    reals: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external],
+    imags: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+) raises:
     """Iterative Cooley-Tukey radix-2 FFT."""
     assert_true(N > 0 and (N & (N - 1)) == 0, msg="N must be a power of 2")
 
@@ -33,8 +37,8 @@ fn fft(N: Int, reals: UnsafePointer[Scalar[DTYPE]], imags: UnsafePointer[Scalar[
     
     parallelize[reverse_bits](N)
 
-    w_re = UnsafePointer[Float64].alloc(N // 2)
-    w_im = UnsafePointer[Float64].alloc(N // 2)
+    w_re = alloc[Float64](N // 2)
+    w_im = alloc[Float64](N // 2)
 
     @parameter
     fn precompute_twiddle_table(k: Int):

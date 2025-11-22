@@ -3,7 +3,8 @@ from fft_v import fft as fft_v
 from fft_vp import fft as fft_vp
 from fft_vpt import fft as fft_vpt
 from fft_vptu import fft as fft_vptu
-from memory import memcpy, memset_zero
+from memory import memset_zero
+from algorithm import parallel_memcpy
 from testing.testing import assert_true
 from time import perf_counter
 from python import Python
@@ -45,18 +46,18 @@ fn main() raises:
 
     funcs = [fft_baseline, fft_v, fft_vp, fft_vpt, fft_vptu]
 
-    reals_mojo_ref = UnsafePointer[Scalar[DTYPE]].alloc(N)
-    reals_mojo = UnsafePointer[Scalar[DTYPE]].alloc(N)
-    imags_mojo = UnsafePointer[Scalar[DTYPE]].alloc(N)
+    reals_mojo_ref = alloc[Scalar[DTYPE]](N)
+    reals_mojo = alloc[Scalar[DTYPE]](N)
+    imags_mojo = alloc[Scalar[DTYPE]](N)
 
     # Access the raw pointer
-    memcpy(reals_mojo_ref, sine_wave.ctypes.data.unsafe_get_as_pointer[DTYPE](), N)
+    parallel_memcpy(dest=reals_mojo_ref, src=sine_wave.ctypes.data.unsafe_get_as_pointer[DTYPE](), count=N)
 
     # Benchmark
     for x, func in enumerate(funcs):
         # Warmup
         for _ in range(WARMUP_RUNS):
-            memcpy(reals_mojo, reals_mojo_ref, N)
+            parallel_memcpy(dest=reals_mojo, src=reals_mojo_ref, count=N)
             memset_zero(imags_mojo, N)
 
             func(N, reals_mojo, imags_mojo)
@@ -64,7 +65,7 @@ fn main() raises:
         # Benchmark Mojo implemenation
         times_mojo = np.zeros(BENCHMARK_RUNS)
         for i in range(BENCHMARK_RUNS):
-            memcpy(reals_mojo, reals_mojo_ref, N)
+            parallel_memcpy(dest=reals_mojo, src=reals_mojo_ref, count=N)
             memset_zero(imags_mojo, N)
 
             start_time = perf_counter()
