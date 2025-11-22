@@ -8,12 +8,12 @@ from time import perf_counter
 from testing.testing import assert_true
 from python import Python, PythonObject
 
-alias NX = 1 << 8
-alias NY = 1 << 8
-alias BENCHMARK_RUNS = 10
+comptime NX = 1 << 8
+comptime NY = 1 << 8
+comptime BENCHMARK_RUNS = 10
 
 @always_inline
-fn benchmark[T: Jacobi](solver: T, grid_numpy: PythonObject) raises -> (PythonObject, PythonObject):
+fn benchmark[T: Jacobi](solver: T, grid_numpy: PythonObject) raises -> Tuple[PythonObject, PythonObject]:
     start_time = perf_counter()
     iters = solver.solve()
     end_time = perf_counter()

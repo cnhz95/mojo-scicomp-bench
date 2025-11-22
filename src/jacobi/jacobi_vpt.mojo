@@ -1,33 +1,34 @@
-from memory import memset_zero, memcpy
+from memory import memset_zero
+from algorithm import parallel_memcpy
 from algorithm.functional import vectorize, parallelize
 from sys.info import simd_width_of
 from os.atomic import Atomic
 from math import sqrt
 from jacobi_trait import Jacobi
 
-alias DX = 1.0
-alias DY = 1.0
-alias R_X = 1.0 / (DX * DX)
-alias R_Y = 1.0 / (DY * DY)
-alias CENTER_COEFF = 2.0 * (R_X + R_Y)
-alias INITIAL_TEMP = 20.0
-alias MAX_ITER = 20000
-alias DTYPE = DType.float64
-alias NELTS = simd_width_of[DTYPE]() * 2
-alias TILE_SIZE = 64
+comptime DX = 1.0
+comptime DY = 1.0
+comptime R_X = 1.0 / (DX * DX)
+comptime R_Y = 1.0 / (DY * DY)
+comptime CENTER_COEFF = 2.0 * (R_X + R_Y)
+comptime INITIAL_TEMP = 20.0
+comptime MAX_ITER = 20000
+comptime DTYPE = DType.float64
+comptime NELTS = simd_width_of[DTYPE]() * 2
+comptime TILE_SIZE = 64
 
 struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
     var NX: Int
     var NY: Int
-    var T_curr: UnsafePointer[Scalar[DTYPE]]
-    var T_next: UnsafePointer[Scalar[DTYPE]]
+    var T_curr: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+    var T_next: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
 
 
     fn __init__(out self, NX: Int, NY: Int):
         self.NX = NX
         self.NY = NY
-        self.T_curr = UnsafePointer[Scalar[DTYPE]].alloc(self.NX * self.NY)
-        self.T_next = UnsafePointer[Scalar[DTYPE]].alloc(self.NX * self.NY)
+        self.T_curr = alloc[Scalar[DTYPE]](self.NX * self.NY)
+        self.T_next = alloc[Scalar[DTYPE]](self.NX * self.NY)
         self.initialize_temperature()
         self.apply_boundary_conditions(self.T_curr)
 
@@ -59,7 +60,7 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
 
 
     @always_inline
-    fn apply_boundary_conditions(self, T: UnsafePointer[Scalar[DTYPE]]):
+    fn apply_boundary_conditions(self, T: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]):
         """Apply Dirichlet boundary conditions to all four edges of the grid."""
         @parameter
         fn apply_top_bottom[width: Int](offset: Int):
@@ -80,7 +81,6 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
     fn jacobi_update(self):
         num_tiles_i = (self.NX - 2 + TILE_SIZE - 1) // TILE_SIZE
         num_tiles_j = (self.NY - 2 + TILE_SIZE - 1) // TILE_SIZE
-        total_tiles = num_tiles_i * num_tiles_j
 
         @parameter
         fn update_row(tile_idx: Int):
@@ -109,6 +109,7 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
                 tile_width = j_end - j_start
                 vectorize[update_row_segment, NELTS](tile_width)
 
+        total_tiles = num_tiles_i * num_tiles_j
         parallelize[update_row](total_tiles)
 
 
@@ -166,7 +167,7 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
     @always_inline
     fn solve(var self) -> Int:
         """Solve the 2D heat equation using the Jacobi iterative method."""
-        memcpy(self.T_next, self.T_curr, self.NX * self.NY)  # Initial guess: T_next = T_curr
+        parallel_memcpy(dest=self.T_next, src=self.T_curr, count=self.NX * self.NY)  # Initial guess: T_next = T_curr
 
         # Jacobi iteration loop
         for iter in range(MAX_ITER):
