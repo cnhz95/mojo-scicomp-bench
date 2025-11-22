@@ -8,15 +8,15 @@ from time import perf_counter
 from testing.testing import assert_true
 from python import Python, PythonObject
 
-alias N = 1 << 10
-alias TOL = 0.005
-alias NUM_RUNS = 10
-alias WARMUP_STEPS = 10
-alias BENCHMARK_STEPS = 100
-alias DTYPE = DType.float64
+comptime N = 1 << 10
+comptime TOL = 0.005
+comptime NUM_RUNS = 10
+comptime WARMUP_STEPS = 10
+comptime BENCHMARK_STEPS = 100
+comptime DTYPE = DType.float64
 
 @always_inline
-fn benchmark[T: NBody](system: T) raises -> (PythonObject, PythonObject, PythonObject):
+fn benchmark[T: NBody](system: T) raises -> Tuple[PythonObject, PythonObject, PythonObject]:
     system.compute_acceleration()
 
     # Warmup
@@ -50,9 +50,9 @@ fn main() raises:
     vel_data = np.random.uniform(-0.1, 0.1, Python.tuple(N, 3))
     mass_data = np.random.uniform(0.1, 1.0, N)
 
-    pos_mojo = UnsafePointer[Scalar[DTYPE]].alloc(3 * N)
-    vel_mojo = UnsafePointer[Scalar[DTYPE]].alloc(3 * N)
-    mass_mojo = UnsafePointer[Scalar[DTYPE]].alloc(N)
+    pos_mojo = alloc[Scalar[DTYPE]](3 * N)
+    vel_mojo = alloc[Scalar[DTYPE]](3 * N)
+    mass_mojo = alloc[Scalar[DTYPE]](N)
 
     for i in range(N):
         pos_mojo[i] = Float64(pos_data[i][0])

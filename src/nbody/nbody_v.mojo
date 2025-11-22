@@ -1,49 +1,56 @@
-from memory import memset_zero, memcpy
+from memory import memset_zero
+from algorithm import parallel_memcpy
 from algorithm.functional import vectorize
 from sys.info import simd_width_of
 from math import sqrt, iota
 from nbody_trait import NBody
 
-alias G = 1.0
-alias DT = 0.01
-alias SOFTENING = 0.001
-alias DTYPE = DType.float64
-alias NELTS = simd_width_of[DTYPE]() * 2
+comptime G = 1.0
+comptime DT = 0.01
+comptime SOFTENING = 0.001
+comptime DTYPE = DType.float64
+comptime NELTS = simd_width_of[DTYPE]() * 2
 
 struct NBodySystem(NBody):
     var N: Int
-    var pos_x: UnsafePointer[Scalar[DTYPE]]
-    var pos_y: UnsafePointer[Scalar[DTYPE]]
-    var pos_z: UnsafePointer[Scalar[DTYPE]]
-    var vel_x: UnsafePointer[Scalar[DTYPE]]
-    var vel_y: UnsafePointer[Scalar[DTYPE]]
-    var vel_z: UnsafePointer[Scalar[DTYPE]]
-    var acc_x: UnsafePointer[Scalar[DTYPE]]
-    var acc_y: UnsafePointer[Scalar[DTYPE]]
-    var acc_z: UnsafePointer[Scalar[DTYPE]]
-    var mass: UnsafePointer[Scalar[DTYPE]]
+    var pos_x: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+    var pos_y: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+    var pos_z: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+    var vel_x: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+    var vel_y: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+    var vel_z: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+    var acc_x: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+    var acc_y: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+    var acc_z: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+    var mass: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
 
 
-    fn __init__(out self, N: Int, pos: UnsafePointer[Scalar[DTYPE]], vel: UnsafePointer[Scalar[DTYPE]], mass: UnsafePointer[Scalar[DTYPE]]):
+    fn __init__(
+        out self,
+        N: Int, 
+        pos: UnsafePointer[mut=False, Scalar[DTYPE]], 
+        vel: UnsafePointer[mut=False, Scalar[DTYPE]], 
+        mass: UnsafePointer[mut=False, Scalar[DTYPE]]
+    ):
         self.N = N
-        self.pos_x = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
-        self.pos_y = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
-        self.pos_z = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
-        self.vel_x = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
-        self.vel_y = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
-        self.vel_z = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
-        self.acc_x = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
-        self.acc_y = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
-        self.acc_z = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
-        self.mass = UnsafePointer[Scalar[DTYPE]].alloc(self.N)
+        self.pos_x = alloc[Scalar[DTYPE]](N)
+        self.pos_y = alloc[Scalar[DTYPE]](N)
+        self.pos_z = alloc[Scalar[DTYPE]](N)
+        self.vel_x = alloc[Scalar[DTYPE]](N)
+        self.vel_y = alloc[Scalar[DTYPE]](N)
+        self.vel_z = alloc[Scalar[DTYPE]](N)
+        self.acc_x = alloc[Scalar[DTYPE]](N)
+        self.acc_y = alloc[Scalar[DTYPE]](N)
+        self.acc_z = alloc[Scalar[DTYPE]](N)
+        self.mass = alloc[Scalar[DTYPE]](N)
 
-        memcpy(self.pos_x, pos, self.N)
-        memcpy(self.pos_y, pos + self.N, self.N)
-        memcpy(self.pos_z, pos + 2 * self.N, self.N)
-        memcpy(self.vel_x, vel, self.N)
-        memcpy(self.vel_y, vel + self.N, self.N)
-        memcpy(self.vel_z, vel + 2 * self.N, self.N)
-        memcpy(self.mass, mass, self.N)
+        parallel_memcpy(dest=self.pos_x, src=pos, count=N)
+        parallel_memcpy(dest=self.pos_y, src=pos + N, count=N)
+        parallel_memcpy(dest=self.pos_z, src=pos + 2 * N, count=N)
+        parallel_memcpy(dest=self.vel_x, src=vel, count=N)
+        parallel_memcpy(dest=self.vel_y, src=vel + N, count=N)
+        parallel_memcpy(dest=self.vel_z, src=vel + 2 * N, count=N)
+        parallel_memcpy(dest=self.mass, src=mass, count=N)
         self.reset_acceleration()
 
 
@@ -93,7 +100,7 @@ struct NBodySystem(NBody):
     @always_inline
     fn advance(self):
         """Perform one leapfrog integration step, updating positions and velocities for all particles."""
-        alias HALF_DT = 0.5 * DT
+        comptime HALF_DT = 0.5 * DT
 
         @parameter
         fn kick_step[width: Int](i: Int):
