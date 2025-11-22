@@ -5,17 +5,21 @@ from testing.testing import assert_true
 from time import perf_counter
 from python import Python
 
-alias M = 1 << 12
-alias N = 1 << 12
-alias K = 1 << 12
-alias WARMUP_RUNS = 3
-alias BENCHMARK_RUNS = 10
-alias DTYPE = DType.float64
-alias NELTS = simd_width_of[DTYPE]() * 2
-alias TILE_SIZE = 4
+comptime M = 1 << 12
+comptime N = 1 << 12
+comptime K = 1 << 12
+comptime WARMUP_RUNS = 3
+comptime BENCHMARK_RUNS = 10
+comptime DTYPE = DType.float64
+comptime NELTS = simd_width_of[DTYPE]() * 2
+comptime TILE_SIZE = 4
 
 @always_inline
-fn matmul_baseline(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
+fn matmul_baseline(
+    C: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external], 
+    A: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external], 
+    B: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external]
+):
     for m in range(M):
         for k in range(K):
             a_mk = A[m * K + k]
@@ -24,24 +28,32 @@ fn matmul_baseline(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYP
 
 
 @always_inline
-fn matmul_v(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
+fn matmul_v(
+    C: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external], 
+    A: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external], 
+    B: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external]
+):
     for m in range(M):
         for k in range(K):
             a_mk = A[m * K + k]
             @parameter  # Parametric closure
-            fn dot[width: int](n: Int):
+            fn dot[width: Int](n: Int):
                 C.store[width=width](m * N + n, C.load[width=width](m * N + n) + a_mk * B.load[width=width](k * N + n))
             vectorize[dot, NELTS](M)
 
 
 @always_inline
-fn matmul_vp(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
+fn matmul_vp(
+    C: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external], 
+    A: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external], 
+    B: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external]
+):
     @parameter
     fn calc_row(m: Int):
         for k in range(K):
             a_mk = A[m * K + k]
             @parameter
-            fn dot[width: int](n: Int):
+            fn dot[width: Int](n: Int):
                 C.store[width=width](m * N + n, C.load[width=width](m * N + n) + a_mk * B.load[width=width](k * N + n))
             vectorize[dot, NELTS](M)
     parallelize[calc_row](M, M)
@@ -54,7 +66,11 @@ fn tile[tiled_fn: Static2DTileUnitFunc, tile_x: Int, tile_y: Int](end_x: Int, en
             tiled_fn[tile_x, tile_y](x, y)
 
 @always_inline
-fn matmul_vpt(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
+fn matmul_vpt(
+    C: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external], 
+    A: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external], 
+    B: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external]
+):
     @parameter
     fn calc_row(m: Int):
         @parameter
@@ -62,7 +78,7 @@ fn matmul_vpt(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], 
             for k in range(y, y + tile_y):
                 a_mk = A[m * K + k]
                 @parameter
-                fn dot[width: int](n: Int):
+                fn dot[width: Int](n: Int):
                     C.store[width=width](m * N + n + x, C.load[width=width](m * N + n + x) + a_mk * B.load[width=width](k * N + n + x))
                 vectorize[dot, NELTS](tile_x)
         tile[calc_tile, NELTS * TILE_SIZE, TILE_SIZE](K, M)
@@ -70,7 +86,11 @@ fn matmul_vpt(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], 
 
 
 @always_inline
-fn matmul_vptu(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]], B: UnsafePointer[Scalar[DTYPE]]):
+fn matmul_vptu(
+    C: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external], 
+    A: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external], 
+    B: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external]
+):
     @parameter
     fn calc_row(m: Int):
         @parameter
@@ -78,7 +98,7 @@ fn matmul_vptu(C: UnsafePointer[Scalar[DTYPE]], A: UnsafePointer[Scalar[DTYPE]],
             for k in range(y, y + tile_y):
                 a_mk = A[m * K + k]
                 @parameter
-                fn dot[width: int](n: Int):
+                fn dot[width: Int](n: Int):
                     C.store[width=width](m * N + n + x, C.load[width=width](m * N + n + x) + a_mk * B.load[width=width](k * N + n + x))
                 alias UNROLL_FACTOR = tile_x // NELTS
                 vectorize[dot, NELTS, unroll_factor=UNROLL_FACTOR](tile_x)
@@ -115,9 +135,9 @@ fn main() raises:
 
     ### MOJO ###
 
-    C_mojo = UnsafePointer[Scalar[DTYPE]].alloc(M * N)
-    A_mojo = UnsafePointer[Scalar[DTYPE]].alloc(M * K)
-    B_mojo = UnsafePointer[Scalar[DTYPE]].alloc(K * N)
+    C_mojo = alloc[Scalar[DTYPE]](M * N)
+    A_mojo = alloc[Scalar[DTYPE]](M * K)
+    B_mojo = alloc[Scalar[DTYPE]](K * N)
 
     # Initialize matrices A and B
     for m in range(M):
