@@ -10,11 +10,11 @@ comptime NELTS = simd_width_of[DTYPE]() * 2
 @always_inline
 fn bit_reverse(x: Int, num_bits: Int) -> Int:
     """Reverse the bits of x using num_bits bits."""
-    rev = 0
+    reverse = 0
     for i in range(num_bits):
-        rev = (rev << 1) | ((x >> i) & 1)
+        reverse = (reverse << 1) | ((x >> i) & 1)
     
-    return rev
+    return reverse
 
 
 @always_inline
