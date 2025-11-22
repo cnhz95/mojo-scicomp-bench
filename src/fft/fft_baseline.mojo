@@ -1,7 +1,7 @@
 from math import pi, cos, sin, log2
 from testing.testing import assert_true
 
-alias DTYPE = DType.float64
+comptime DTYPE = DType.float64
 
 @always_inline
 fn bit_reverse(x: Int, num_bits: Int) -> Int:

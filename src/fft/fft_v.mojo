@@ -4,8 +4,8 @@ from memory import memcpy, memset_zero
 from sys.info import simd_width_of
 from testing.testing import assert_true
 
-alias DTYPE = DType.float64
-alias NELTS = simd_width_of[DTYPE]() * 2
+comptime DTYPE = DType.float64
+comptime NELTS = simd_width_of[DTYPE]() * 2
 
 @always_inline
 fn bit_reverse(x: Int, num_bits: Int) -> Int:
