@@ -31,19 +31,18 @@ fn fft(
             swap(reals[i], reals[j])
             swap(imags[i], imags[j])
 
-    w_re = alloc[Float64](N // 2)
-    w_im = alloc[Float64](N // 2)
-    
-    # Precompute twiddle table
-    for k in range(N // 2):
-        theta = -2.0 * pi * Float64(k) / Float64(N)
-        w_re[k] = cos(theta)
-        w_im[k] = sin(theta)
+    w_re = alloc[Scalar[DTYPE]](N // 2)
+    w_im = alloc[Scalar[DTYPE]](N // 2)
 
     len = 2
     while len <= N:
         half = len >> 1
-        w_stride = N // len  # Stride in twiddle table
+        
+        # Compute contiguous twiddles for this stage
+        for k in range(half):
+            theta = -2.0 * pi * Float64(k) / Float64(len)
+            w_re[k] = cos(theta)
+            w_im[k] = sin(theta)
 
         # Process all groups at this stage
         for i in range(0, N, len):
@@ -51,14 +50,13 @@ fn fft(
             for j in range(half):
                 even_idx = i + j
                 odd_idx = even_idx + half
-                w_idx = j * w_stride
 
                 u_re = reals[even_idx]
                 u_im = imags[even_idx]
 
                 # Complex multiply
-                v_re = reals[odd_idx] * w_re[w_idx] - imags[odd_idx] * w_im[w_idx]
-                v_im = reals[odd_idx] * w_im[w_idx] + imags[odd_idx] * w_re[w_idx]
+                v_re = reals[odd_idx] * w_re[j] - imags[odd_idx] * w_im[j]
+                v_im = reals[odd_idx] * w_im[j] + imags[odd_idx] * w_re[j]
                 
                 # Butterfly operations
                 reals[even_idx] = u_re + v_re

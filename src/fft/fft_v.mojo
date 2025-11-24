@@ -35,31 +35,29 @@ fn fft(
             swap(reals[i], reals[j])
             swap(imags[i], imags[j])
 
-    w_re = alloc[Float64](N // 2)
-    w_im = alloc[Float64](N // 2)
-    
-    # Precompute twiddle table
-    for k in range(N // 2):
-        theta = -2.0 * pi * Float64(k) / Float64(N)
-        w_re[k] = cos(theta)
-        w_im[k] = sin(theta)
+    w_re = alloc[Scalar[DTYPE]](N // 2)
+    w_im = alloc[Scalar[DTYPE]](N // 2)
     
     len = 2
     while len <= N:
         half = len >> 1
-        w_stride = N // len  # Stride in twiddle table
+
+        # Compute contiguous twiddles for this stage
+        for k in range(half):
+            theta = -2.0 * pi * Float64(k) / Float64(len)
+            w_re[k] = cos(theta)
+            w_im[k] = sin(theta)
 
         # Process all groups at this stage
         for i in range(0, N, len):
             # Perform butterfly operations within group
             @parameter
-            fn butterfly_segment[width: Int](j_offset: Int):
-                even_idx = i + j_offset
+            fn compute_butterfly_segment[width: Int](offset: Int):
+                even_idx = i + offset
                 odd_idx = even_idx + half
-                w_idx = j_offset * w_stride
 
-                w_re_vec = w_re.offset(w_idx).strided_load[width=width](w_stride)
-                w_im_vec = w_im.offset(w_idx).strided_load[width=width](w_stride)
+                w_re_vec = w_re.load[width=width](offset)
+                w_im_vec = w_im.load[width=width](offset)
                 
                 u_re = reals.load[width=width](even_idx)
                 u_im = imags.load[width=width](even_idx)
@@ -76,7 +74,7 @@ fn fft(
                 reals.store[width=width](odd_idx, u_re - v_re)
                 imags.store[width=width](odd_idx, u_im - v_im)
 
-            vectorize[butterfly_segment, NELTS](half)
+            vectorize[compute_butterfly_segment, NELTS](half)
 
         len <<= 1  # Double the size for next stage
 

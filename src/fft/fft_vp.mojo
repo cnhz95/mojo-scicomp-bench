@@ -37,33 +37,31 @@ fn fft(
     
     parallelize[reverse_bits](N)
 
-    w_re = alloc[Float64](N // 2)
-    w_im = alloc[Float64](N // 2)
-
-    @parameter
-    fn precompute_twiddle_table(k: Int):
-        theta = -2.0 * pi * Float64(k) / Float64(N)
-        w_re[k] = cos(theta)
-        w_im[k] = sin(theta)
-    
-    parallelize[precompute_twiddle_table](N // 2)
+    w_re = alloc[Scalar[DTYPE]](N // 2)
+    w_im = alloc[Scalar[DTYPE]](N // 2)
     
     len = 2
     while len <= N:
         half = len >> 1
-        w_stride = N // len  # Stride in twiddle table
+
+        @parameter
+        fn compute_twiddle_factor(k: Int):
+            theta = -2.0 * pi * Float64(k) / Float64(len)
+            w_re[k] = cos(theta)
+            w_im[k] = sin(theta)
+
+        parallelize[compute_twiddle_factor](half)
 
         @parameter
         fn process_group(i: Int):
             # Perform butterfly operations within group
             @parameter
-            fn compute_butterfly_segment[width: Int](j_offset: Int):
-                even_idx = i * len + j_offset
+            fn compute_butterfly_segment[width: Int](offset: Int):
+                even_idx = i * len + offset
                 odd_idx = even_idx + half
-                w_idx = j_offset * w_stride
 
-                w_re_vec = w_re.offset(w_idx).strided_load[width=width](w_stride)
-                w_im_vec = w_im.offset(w_idx).strided_load[width=width](w_stride)
+                w_re_vec = w_re.load[width=width](offset)
+                w_im_vec = w_im.load[width=width](offset)
                 
                 u_re = reals.load[width=width](even_idx)
                 u_im = imags.load[width=width](even_idx)
