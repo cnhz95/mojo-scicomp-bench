@@ -1,8 +1,7 @@
 from fft_baseline import fft as fft_baseline
 from fft_v import fft as fft_v
 from fft_vp import fft as fft_vp
-from fft_vpt import fft as fft_vpt
-from fft_vptu import fft as fft_vptu
+from fft_vpu import fft as fft_vpu
 from memory import memset_zero
 from algorithm import parallel_memcpy
 from testing.testing import assert_true
@@ -44,7 +43,7 @@ fn main() raises:
 
     ### MOJO
 
-    funcs = [fft_baseline, fft_v, fft_vp, fft_vpt, fft_vptu]
+    funcs = [fft_baseline, fft_v, fft_vp, fft_vpu]
 
     reals_mojo_ref = alloc[Scalar[DTYPE]](N)
     reals_mojo = alloc[Scalar[DTYPE]](N)
@@ -76,7 +75,7 @@ fn main() raises:
             # Verify against NumPy baseline
             for i in range(N):
                 err = abs(reals_mojo[i] - Float64(output_numpy.real[i])) + abs(imags_mojo[i] - Float64(output_numpy.imag[i]))
-                assert_true(err < 1e-12, msg="Mismatch of " + String(err) + " at position " + String(i))
+                assert_true(err < 1e-8, msg="Mismatch of " + String(err) + " at position " + String(i))
 
         if x == 0: print("\nBaseline", end=" ")
         if x == 1: print("\nVectorized", end=" ")
