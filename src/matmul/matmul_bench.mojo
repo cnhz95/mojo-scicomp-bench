@@ -61,6 +61,7 @@ fn matmul_vp(
 
 @always_inline
 fn tile[tiled_fn: Static2DTileUnitFunc, tile_x: Int, tile_y: Int](end_x: Int, end_y: Int):
+    # Assumes that ends are multiples of the tiles
     for y in range(0, end_y, tile_y):
         for x in range(0, end_x, tile_x):
             tiled_fn[tile_x, tile_y](x, y)
@@ -116,6 +117,7 @@ fn main() raises:
     B_numpy = np.full(Python.tuple(K, N), 3.14, dtype=np.float64)
 
     # Warmup
+    C_numpy = np.matmul(A_numpy, B_numpy)
     for _ in range(WARMUP_RUNS):
         _ = np.matmul(A_numpy, B_numpy)
 
@@ -123,7 +125,7 @@ fn main() raises:
     times_numpy = np.zeros(BENCHMARK_RUNS)
     for i in range(BENCHMARK_RUNS):
         start_time = perf_counter()
-        C_numpy = np.matmul(A_numpy, B_numpy)
+        _ = np.matmul(A_numpy, B_numpy)
         end_time = perf_counter()
         times_numpy[i] = end_time - start_time
 
