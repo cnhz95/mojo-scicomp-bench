@@ -39,7 +39,7 @@ fn matmul_v(
             @parameter  # Parametric closure
             fn dot[width: Int](n: Int):
                 C.store[width=width](m * N + n, C.load[width=width](m * N + n) + a_mk * B.load[width=width](k * N + n))
-            vectorize[dot, NELTS](M)
+            vectorize[dot, NELTS](N)
 
 
 @always_inline
@@ -55,7 +55,7 @@ fn matmul_vp(
             @parameter
             fn dot[width: Int](n: Int):
                 C.store[width=width](m * N + n, C.load[width=width](m * N + n) + a_mk * B.load[width=width](k * N + n))
-            vectorize[dot, NELTS](M)
+            vectorize[dot, NELTS](N)
     parallelize[calc_row](M, M)
 
 
