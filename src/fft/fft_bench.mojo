@@ -9,7 +9,7 @@ from time import perf_counter
 from python import Python
 
 alias N = 1 << 20
-alias WARMUP_RUNS = 3
+alias WARMUP_RUNS = 10
 alias BENCHMARK_RUNS = 10
 alias DTYPE = DType.float64
 
@@ -49,7 +49,7 @@ fn main() raises:
     reals_mojo = alloc[Scalar[DTYPE]](N)
     imags_mojo = alloc[Scalar[DTYPE]](N)
 
-    # Access the raw pointer
+    # Construct an UnsafePointer from the raw data pointer of the NumPy array
     parallel_memcpy(dest=reals_mojo_ref, src=sine_wave.ctypes.data.unsafe_get_as_pointer[DTYPE](), count=N)
 
     # Benchmark
@@ -74,8 +74,10 @@ fn main() raises:
 
             # Verify against NumPy baseline
             for i in range(N):
-                err = abs(reals_mojo[i] - Float64(output_numpy.real[i])) + abs(imags_mojo[i] - Float64(output_numpy.imag[i]))
-                assert_true(err < 1e-8, msg="Mismatch of " + String(err) + " at position " + String(i))
+                err_real = reals_mojo[i] - Float64(output_numpy.real[i])
+                err_imag = imags_mojo[i] - Float64(output_numpy.imag[i])
+                err_mag = sqrt(err_real * err_real + err_imag * err_imag)
+                assert_true(err_mag < 1e-8, msg="Mismatch of " + String(err_mag) + " at position " + String(i))
 
         if x == 0: print("\nBaseline", end=" ")
         if x == 1: print("\nVectorized", end=" ")
