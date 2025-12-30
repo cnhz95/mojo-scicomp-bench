@@ -7,7 +7,7 @@ from math import sqrt, iota
 from nbody_trait import NBody
 
 comptime G = 1.0
-comptime DT = 0.01
+comptime DT = 0.001
 comptime SOFTENING = 0.001
 comptime DTYPE = DType.float64
 comptime NELTS = simd_width_of[DTYPE]() * 2
@@ -100,7 +100,7 @@ struct NBodySystem(NBody):
                         mass_j_vec = self.mass.load[width=width](j)
                         
                         # Mask out self-interaction
-                        indices = iota[DType.int32, width](j)  # [j, j+1, j+2, ...]
+                        indices = iota[DType.int32, width](j)  # [j, j+1, j+2, ..., j+width-1]
                         mask_vec = SIMD[DType.bool, width](fill=(indices != i)).select(1.0, 0.0)
 
                         distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING

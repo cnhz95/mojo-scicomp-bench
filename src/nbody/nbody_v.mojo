@@ -6,7 +6,7 @@ from math import sqrt, iota
 from nbody_trait import NBody
 
 comptime G = 1.0
-comptime DT = 0.01
+comptime DT = 0.001
 comptime SOFTENING = 0.001
 comptime DTYPE = DType.float64
 comptime NELTS = simd_width_of[DTYPE]() * 2

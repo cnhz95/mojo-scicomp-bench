@@ -1,7 +1,7 @@
 import numpy as np
 
 G = 1.0
-DT = 0.01
+DT = 0.001
 SOFTENING = 0.001
 
 class NBodySystem:
