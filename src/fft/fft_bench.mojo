@@ -82,8 +82,7 @@ fn main() raises:
         if x == 0: print("\nBaseline", end=" ")
         if x == 1: print("\nVectorized", end=" ")
         if x == 2: print("\nVectorized+Parallelized", end=" ")
-        if x == 3: print("\nVectorized+Parallelized+Tiled", end=" ")
-        if x == 4: print("\nVectorized+Parallelized+Tiled+Unrolled", end=" ")
+        if x == 3: print("\nVectorized+Parallelized+Unrolled", end=" ")
         print("Mojo FFT")
 
         mean_mojo = np.mean(times_mojo)
