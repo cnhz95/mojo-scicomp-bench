@@ -43,12 +43,12 @@ fn main() raises:
     np = Python.import_module("numpy")
     Python.add_to_path("src/nbody")
     nbody_numpy = Python.import_module("nbody_numpy")
-    np.random.seed(42)
+    rng = np.random.default_rng(42)
 
-    # Generate random data used by both NumPy and Mojo
-    pos_data = np.random.uniform(-1.0, 1.0, Python.tuple(N, 3))
-    vel_data = np.random.uniform(-0.1, 0.1, Python.tuple(N, 3))
-    mass_data = np.random.uniform(0.1, 1.0, N)
+    # Generate data used by both NumPy and Mojo
+    pos_data = rng.normal(loc=0.0, scale=0.5, size=Python.tuple(N, 3))
+    vel_data = rng.normal(loc=0.0, scale=0.1, size=Python.tuple(N, 3))
+    mass_data = np.ones(N) / N
 
     pos_mojo = alloc[Scalar[DTYPE]](3 * N)
     vel_mojo = alloc[Scalar[DTYPE]](3 * N)
