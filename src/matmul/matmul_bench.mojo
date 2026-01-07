@@ -8,10 +8,10 @@ from python import Python
 comptime M = 1 << 12
 comptime N = 1 << 12
 comptime K = 1 << 12
-comptime WARMUP_RUNS = 3
+comptime WARMUP_RUNS = 10
 comptime BENCHMARK_RUNS = 10
 comptime DTYPE = DType.float64
-comptime NELTS = simd_width_of[DTYPE]() * 2
+comptime NELTS = simd_width_of[DTYPE]()
 comptime TILE_SIZE = 4
 
 @always_inline
@@ -118,7 +118,7 @@ fn main() raises:
 
     # Warmup
     C_numpy = np.matmul(A_numpy, B_numpy)
-    for _ in range(WARMUP_RUNS):
+    for _ in range(WARMUP_RUNS - 1):
         _ = np.matmul(A_numpy, B_numpy)
 
     # Benchmark NumPy
