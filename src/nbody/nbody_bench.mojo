@@ -9,7 +9,7 @@ from testing.testing import assert_true
 from python import Python, PythonObject
 
 comptime N = 1 << 10
-comptime TOL = 0.005
+comptime TOL = 1e-4
 comptime NUM_RUNS = 10
 comptime WARMUP_STEPS = 10
 comptime BENCHMARK_STEPS = 100
