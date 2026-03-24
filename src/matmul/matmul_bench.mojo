@@ -101,7 +101,7 @@ fn matmul_vptu(
                 @parameter
                 fn dot[width: Int](n: Int):
                     C.store[width=width](m * N + n + x, C.load[width=width](m * N + n + x) + a_mk * B.load[width=width](k * N + n + x))
-                alias UNROLL_FACTOR = tile_x // NELTS
+                comptime UNROLL_FACTOR = tile_x // NELTS
                 vectorize[dot, NELTS, unroll_factor=UNROLL_FACTOR](tile_x)
         tile[calc_tile, NELTS * TILE_SIZE, TILE_SIZE](K, N)
     parallelize[calc_row](M, M)
