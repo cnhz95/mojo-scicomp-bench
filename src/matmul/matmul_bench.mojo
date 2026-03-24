@@ -38,7 +38,7 @@ fn matmul_v(
             a_mk = A[m * K + k]
             @parameter  # Parametric closure
             fn dot[width: Int](n: Int):
-                C.store[width=width](m * N + n, C.load[width=width](m * N + n) + a_mk * B.load[width=width](k * N + n))
+                C.store(m * N + n, C.load[width=width](m * N + n) + a_mk * B.load[width=width](k * N + n))
             vectorize[dot, NELTS](N)
 
 
@@ -54,7 +54,7 @@ fn matmul_vp(
             a_mk = A[m * K + k]
             @parameter
             fn dot[width: Int](n: Int):
-                C.store[width=width](m * N + n, C.load[width=width](m * N + n) + a_mk * B.load[width=width](k * N + n))
+                C.store(m * N + n, C.load[width=width](m * N + n) + a_mk * B.load[width=width](k * N + n))
             vectorize[dot, NELTS](N)
     parallelize[calc_row](M, M)
 
@@ -80,9 +80,9 @@ fn matmul_vpt(
                 a_mk = A[m * K + k]
                 @parameter
                 fn dot[width: Int](n: Int):
-                    C.store[width=width](m * N + n + x, C.load[width=width](m * N + n + x) + a_mk * B.load[width=width](k * N + n + x))
+                    C.store(m * N + n + x, C.load[width=width](m * N + n + x) + a_mk * B.load[width=width](k * N + n + x))
                 vectorize[dot, NELTS](tile_x)
-        tile[calc_tile, NELTS * TILE_SIZE, TILE_SIZE](K, N)
+        tile[calc_tile, NELTS * TILE_SIZE, TILE_SIZE](N, K)
     parallelize[calc_row](M, M)
 
 
@@ -100,10 +100,10 @@ fn matmul_vptu(
                 a_mk = A[m * K + k]
                 @parameter
                 fn dot[width: Int](n: Int):
-                    C.store[width=width](m * N + n + x, C.load[width=width](m * N + n + x) + a_mk * B.load[width=width](k * N + n + x))
+                    C.store(m * N + n + x, C.load[width=width](m * N + n + x) + a_mk * B.load[width=width](k * N + n + x))
                 comptime UNROLL_FACTOR = tile_x // NELTS
                 vectorize[dot, NELTS, unroll_factor=UNROLL_FACTOR](tile_x)
-        tile[calc_tile, NELTS * TILE_SIZE, TILE_SIZE](K, N)
+        tile[calc_tile, NELTS * TILE_SIZE, TILE_SIZE](N, K)
     parallelize[calc_row](M, M)
 
 
