@@ -40,15 +40,17 @@ fn main() raises:
     ### NUMPY ###
 
     # Warmup
-    warmup_solver_numpy = jacobi_numpy.Heat2DJacobi(NX, NY)
+    warmup_solver_numpy = jacobi_numpy.Heat2DJacobi(NX, NY, MAX_ITER)
     _ = warmup_solver_numpy.solve()
     grid_numpy = warmup_solver_numpy.get_grid()
+    for _ in range(WARMUP_RUNS - 1):
+        _ = jacobi_numpy.Heat2DJacobi(NX, NY, MAX_ITER).solve()
     
     # Benchmark NumPy
     iters_numpy = np.zeros(BENCHMARK_RUNS, dtype=np.int32)
     times_numpy = np.zeros(BENCHMARK_RUNS, dtype=np.float64)
     for i in range(BENCHMARK_RUNS):
-        solver_numpy = jacobi_numpy.Heat2DJacobi(NX, NY)
+        solver_numpy = jacobi_numpy.Heat2DJacobi(NX, NY, MAX_ITER)
 
         start_time = perf_counter()
         iters_numpy[i] = Int(solver_numpy.solve())
@@ -66,25 +68,27 @@ fn main() raises:
     print("NumPy Jacobi 2D Heat Equation Solver")
     print("Execution time:\t", np.round(mean_numpy, 6), "s ±", np.round((ci[1] - ci[0]) / 2, 6), "s")
 
+
     ### MOJO ###
     
     iters_mojo = np.zeros(BENCHMARK_RUNS, dtype=np.int32)
     times_mojo = np.zeros(BENCHMARK_RUNS, dtype=np.float64)
     for x in range(5):
         # Warmup
-        if x == 0: _ = jacobi_baseline(NX, NY).solve()
-        if x == 1: _ = jacobi_v(NX, NY).solve()
-        if x == 2: _ = jacobi_vp(NX, NY).solve()
-        if x == 3: _ = jacobi_vpt(NX, NY).solve()
-        if x == 4: _ = jacobi_vptu(NX, NY).solve()
+        for _ in range(WARMUP_RUNS):
+            if x == 0: _ = jacobi_baseline(NX, NY, MAX_ITER).solve()
+            if x == 1: _ = jacobi_v(NX, NY, MAX_ITER).solve()
+            if x == 2: _ = jacobi_vp(NX, NY, MAX_ITER).solve()
+            if x == 3: _ = jacobi_vpt(NX, NY, MAX_ITER).solve()
+            if x == 4: _ = jacobi_vptu(NX, NY, MAX_ITER).solve()
 
         # Benchmark Mojo implementations
         for i in range(BENCHMARK_RUNS):
-            if x == 0: times_mojo[i], iters_mojo[i] = benchmark(jacobi_baseline(NX, NY), grid_numpy)
-            if x == 1: times_mojo[i], iters_mojo[i] = benchmark(jacobi_v(NX, NY), grid_numpy)
-            if x == 2: times_mojo[i], iters_mojo[i] = benchmark(jacobi_vp(NX, NY), grid_numpy)
-            if x == 3: times_mojo[i], iters_mojo[i] = benchmark(jacobi_vpt(NX, NY), grid_numpy)
-            if x == 4: times_mojo[i], iters_mojo[i] = benchmark(jacobi_vptu(NX, NY), grid_numpy)
+            if x == 0: times_mojo[i], iters_mojo[i] = benchmark(jacobi_baseline(NX, NY, MAX_ITER), grid_numpy)
+            if x == 1: times_mojo[i], iters_mojo[i] = benchmark(jacobi_v(NX, NY, MAX_ITER), grid_numpy)
+            if x == 2: times_mojo[i], iters_mojo[i] = benchmark(jacobi_vp(NX, NY, MAX_ITER), grid_numpy)
+            if x == 3: times_mojo[i], iters_mojo[i] = benchmark(jacobi_vpt(NX, NY, MAX_ITER), grid_numpy)
+            if x == 4: times_mojo[i], iters_mojo[i] = benchmark(jacobi_vptu(NX, NY, MAX_ITER), grid_numpy)
 
         if x == 0: print("\nBaseline", end=" ")
         if x == 1: print("\nVectorized", end=" ")
@@ -101,5 +105,5 @@ fn main() raises:
         sem = std_mojo / np.sqrt(BENCHMARK_RUNS)  # Standard error of the mean
         res = stats.t.interval(confidence=0.95, df=BENCHMARK_RUNS-1, loc=mean_mojo, scale=sem)
 
-        print("Mean time:\t", np.round(mean_mojo, 4), "s ±", np.round((ci[1] - ci[0]) / 2, 4), "s")
+        print("Mean time:\t", np.round(mean_mojo, 6), "s ±", np.round((ci[1] - ci[0]) / 2, 6), "s")
         print("Speedup:\t ", np.round(mean_numpy / mean_mojo, 2), "x", sep="")

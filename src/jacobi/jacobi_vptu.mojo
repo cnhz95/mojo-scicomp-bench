@@ -12,7 +12,6 @@ comptime R_X = 1.0 / (DX * DX)
 comptime R_Y = 1.0 / (DY * DY)
 comptime CENTER_COEFF = 2.0 * (R_X + R_Y)
 comptime INITIAL_TEMP = 20.0
-comptime MAX_ITER = 20000
 comptime DTYPE = DType.float64
 comptime NELTS = simd_width_of[DTYPE]() * 2
 comptime TILE_SIZE = 64
@@ -21,13 +20,15 @@ comptime UNROLL_FACTOR = 4
 struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
     var NX: Int
     var NY: Int
+    var MAX_ITER: Int
     var T_curr: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
     var T_next: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
 
 
-    fn __init__(out self, NX: Int, NY: Int):
+    fn __init__(out self, NX: Int, NY: Int, MAX_ITER: Int):
         self.NX = NX
         self.NY = NY
+        self.MAX_ITER = MAX_ITER
         self.T_curr = alloc[Scalar[DTYPE]](self.NX * self.NY)
         self.T_next = alloc[Scalar[DTYPE]](self.NX * self.NY)
         self.initialize_temperature()
@@ -171,7 +172,7 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
         parallel_memcpy(dest=self.T_next, src=self.T_curr, count=self.NX * self.NY)  # Initial guess: T_next = T_curr
 
         # Jacobi iteration loop
-        for iter in range(MAX_ITER):
+        for iter in range(self.MAX_ITER):
             self.jacobi_update()
             self.apply_boundary_conditions(self.T_next)
             res = self.residual_norm()
@@ -184,4 +185,4 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
             swap(self.T_curr, self.T_next)
 
         # Did not converge
-        return MAX_ITER
+        return self.MAX_ITER
