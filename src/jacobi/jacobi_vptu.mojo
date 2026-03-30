@@ -80,13 +80,13 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
 
     @always_inline
     fn jacobi_update(self):
-        num_tiles_i = (self.NX - 2 + TILE_SIZE - 1) // TILE_SIZE
-        num_tiles_j = (self.NY - 2 + TILE_SIZE - 1) // TILE_SIZE
+        num_i_tiles = (self.NX - 2 + TILE_SIZE - 1) // TILE_SIZE
+        num_j_tiles = (self.NY - 2 + TILE_SIZE - 1) // TILE_SIZE
 
         @parameter
         fn update_row(tile_idx: Int):
-            tile_i = tile_idx // num_tiles_j
-            tile_j = tile_idx % num_tiles_j
+            tile_i = tile_idx // num_j_tiles
+            tile_j = tile_idx % num_j_tiles
 
             i_start = tile_i * TILE_SIZE + 1
             i_end = min(i_start + TILE_SIZE, self.NX - 1)
@@ -110,7 +110,7 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
                 tile_width = j_end - j_start
                 vectorize[update_row_segment, NELTS, unroll_factor=UNROLL_FACTOR](tile_width)
 
-        total_tiles = num_tiles_i * num_tiles_j
+        total_tiles = num_i_tiles * num_j_tiles
         parallelize[update_row](total_tiles)
 
 
@@ -120,13 +120,13 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
         res_squared = Atomic[DTYPE](0.0)
         norm_squared = Atomic[DTYPE](0.0)
 
-        num_tiles_i = (self.NX - 2 + TILE_SIZE - 1) // TILE_SIZE
-        num_tiles_j = (self.NY - 2 + TILE_SIZE - 1) // TILE_SIZE
+        num_i_tiles = (self.NX - 2 + TILE_SIZE - 1) // TILE_SIZE
+        num_j_tiles = (self.NY - 2 + TILE_SIZE - 1) // TILE_SIZE
 
         @parameter
         fn accumulate_tile_residual(tile_idx: Int):
-            tile_i = tile_idx // num_tiles_j
-            tile_j = tile_idx % num_tiles_j
+            tile_i = tile_idx // num_j_tiles
+            tile_j = tile_idx % num_j_tiles
 
             i_start = tile_i * TILE_SIZE + 1
             i_end = min(i_start + TILE_SIZE, self.NX - 1)
@@ -159,7 +159,7 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
             _ = res_squared.fetch_add(local_res_sum)
             _ = norm_squared.fetch_add(local_norm_sum)
 
-        total_tiles = num_tiles_i * num_tiles_j
+        total_tiles = num_i_tiles * num_j_tiles
         parallelize[accumulate_tile_residual](total_tiles)
 
         return sqrt(res_squared.load() / norm_squared.load()) if norm_squared.load() > 0 else sqrt(res_squared.load())
