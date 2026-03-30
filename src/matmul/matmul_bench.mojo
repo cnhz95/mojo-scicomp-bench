@@ -15,7 +15,7 @@ comptime NELTS = simd_width_of[DTYPE]()
 comptime TILE_SIZE = 4
 
 @always_inline
-fn matmul_baseline(
+fn matmul_unoptimized(
     C: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external], 
     A: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external], 
     B: UnsafePointer[mut=False, Scalar[DTYPE], MutOrigin.external]
