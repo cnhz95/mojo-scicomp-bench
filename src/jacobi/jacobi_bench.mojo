@@ -10,6 +10,8 @@ from python import Python, PythonObject
 
 comptime NX = 1 << 8
 comptime NY = 1 << 8
+comptime MAX_ITER = 500
+comptime WARMUP_RUNS = 10
 comptime BENCHMARK_RUNS = 10
 
 @always_inline
@@ -31,6 +33,7 @@ fn benchmark[T: Jacobi](solver: T, grid_numpy: PythonObject) raises -> Tuple[Pyt
 
 fn main() raises:
     np = Python.import_module("numpy")
+    stats = Python.import_module("scipy.stats")
     Python.add_to_path("src/jacobi")
     jacobi_numpy = Python.import_module("jacobi_numpy")
 
@@ -56,10 +59,12 @@ fn main() raises:
         
     assert_true(np.all(iters_numpy == iters_numpy[0]), msg="NumPy iteration count differs")
     mean_numpy = np.mean(times_numpy)
-    print("NumPy Jacobi 2D Heat Equation Solver")
-    print("Execution time:\t", np.round(mean_numpy, 4), "s")
-    print("Std dev:\t", np.round(np.std(times_numpy, ddof=1), 4), "s")
+    std_numpy = np.std(times_numpy, ddof=1)
+    sem = std_numpy / np.sqrt(BENCHMARK_RUNS)  # Standard error of the mean
+    res = stats.t.interval(confidence=0.95, df=BENCHMARK_RUNS-1, loc=mean_numpy, scale=sem)
 
+    print("NumPy Jacobi 2D Heat Equation Solver")
+    print("Execution time:\t", np.round(mean_numpy, 6), "s ±", np.round((ci[1] - ci[0]) / 2, 6), "s")
 
     ### MOJO ###
     
@@ -91,7 +96,10 @@ fn main() raises:
         # Make sure that all solvers ran for the same number of iterations
         assert_true(np.all(iters_mojo == iters_numpy[0]), msg="Mojo and NumPy iteration count differs")
 
-        mean_mojo = np.round(np.mean(times_mojo), 4)
-        print("Mean time:\t", mean_mojo, "s")
-        print("Std dev:\t", np.round(np.std(times_mojo, ddof=1), 4), "s")
-        print("Speedup:\t ", np.round(mean_numpy / mean_mojo, 4), "x", sep="")
+        mean_mojo = np.mean(times_mojo)
+        std_mojo = np.std(times_mojo)
+        sem = std_mojo / np.sqrt(BENCHMARK_RUNS)  # Standard error of the mean
+        res = stats.t.interval(confidence=0.95, df=BENCHMARK_RUNS-1, loc=mean_mojo, scale=sem)
+
+        print("Mean time:\t", np.round(mean_mojo, 4), "s ±", np.round((ci[1] - ci[0]) / 2, 4), "s")
+        print("Speedup:\t ", np.round(mean_numpy / mean_mojo, 2), "x", sep="")

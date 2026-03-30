@@ -11,8 +11,8 @@ from python import Python, PythonObject
 comptime N = 1 << 10
 comptime TOL = 1e-4
 comptime NUM_RUNS = 10
-comptime WARMUP_STEPS = 10
-comptime BENCHMARK_STEPS = 100
+comptime WARMUP_STEPS = 50
+comptime BENCHMARK_STEPS = 50
 comptime DTYPE = DType.float64
 
 @always_inline
@@ -41,6 +41,7 @@ fn benchmark[T: NBody](system: T) raises -> Tuple[PythonObject, PythonObject, Py
 
 fn main() raises:
     np = Python.import_module("numpy")
+    stats = Python.import_module("scipy.stats")
     Python.add_to_path("src/nbody")
     nbody_numpy = Python.import_module("nbody_numpy")
     rng = np.random.default_rng(42)
@@ -97,10 +98,13 @@ fn main() raises:
     assert_true(np.all(initial_energy_numpy == initial_energy_numpy[0]), msg="Initial energy differs between NumPy runs")
     assert_true(np.all(final_energy_numpy == final_energy_numpy[0]), msg="Final energy differs between NumPy runs")
 
-    mean_numpy = np.round(np.mean(times_numpy), 4)
+    mean_numpy = np.mean(times_numpy)
+    std_numpy = np.std(times_numpy, ddof=1)
+    sem = std_numpy / np.sqrt(NUM_RUNS)  # Standard error of the mean
+    ci = stats.t.interval(confidence=0.95, df=NUM_RUNS-1, loc=mean_numpy, scale=sem)
+
     print("NumPy N-body Simulation")
-    print("Mean time:\t", mean_numpy, "s")
-    print("Std dev:\t", np.round(np.std(times_numpy, ddof=1), 4), "s")
+    print("Execution time:\t", np.round(mean_numpy, 6), "s ±", np.round((ci[1] - ci[0]) / 2, 6), "s")
 
 
     ### MOJO ###
@@ -126,10 +130,13 @@ fn main() raises:
         assert_true(np.allclose(initial_energy_mojo, initial_energy_numpy), msg="Initial energy differs between Mojo and NumPy")
         assert_true(np.allclose(final_energy_mojo, final_energy_numpy), msg="Final energy differs between Mojo and NumPy")
 
-        mean_mojo = np.round(np.mean(times_mojo), 4)
-        print("Mean time:\t", mean_mojo, "s")
-        print("Std dev:\t", np.round(np.std(times_mojo, ddof=1), 4), "s")
-        print("Speedup:\t ", np.round(mean_numpy / mean_mojo, 4), "x", sep="")
+        mean_mojo = np.mean(times_mojo)
+        std_mojo = np.std(times_mojo)
+        sem = std_mojo / np.sqrt(NUM_RUNS)
+        ci = stats.t.interval(confidence=0.95, df=NUM_RUNS-1, loc=mean_mojo, scale=sem)
+        
+        print("Mean time:\t", np.round(mean_mojo, 6), "s ±", np.round((ci[1] - ci[0]) / 2, 6), "s")
+        print("Speedup:\t ", np.round(mean_numpy / mean_mojo, 2), "x", sep="")
     
     pos_mojo.free()
     vel_mojo.free()

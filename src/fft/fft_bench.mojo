@@ -15,6 +15,7 @@ alias DTYPE = DType.float64
 
 fn main() raises:
     np = Python.import_module("numpy")
+    stats = Python.import_module("scipy.stats")
 
     ### NUMPY ###
 
@@ -36,9 +37,12 @@ fn main() raises:
         times_numpy[i] = end_time - start_time
 
     mean_numpy = np.mean(times_numpy)
+    std_numpy = np.std(times_numpy, ddof=1)
+    sem = std_numpy / np.sqrt(BENCHMARK_RUNS)  # Standard error of the mean
+    ci = stats.t.interval(confidence=0.95, df=BENCHMARK_RUNS-1, loc=mean_numpy, scale=sem)
+    
     print("NumPy FFT")
-    print("Mean time:\t", np.round(mean_numpy, 4), "s")
-    print("Std dev:\t", np.round(np.std(times_numpy, ddof=1), 4), "s")
+    print("Mean time:\t", np.round(mean_numpy, 6), "s ±", np.round((ci[1] - ci[0]) / 2, 6), "s")
 
 
     ### MOJO
@@ -86,9 +90,12 @@ fn main() raises:
         print("Mojo FFT")
 
         mean_mojo = np.mean(times_mojo)
-        print("Mean time:\t", np.round(mean_mojo, 4), "s")
-        print("Std dev:\t", np.round(np.std(times_mojo, ddof=1), 4), "s")
-        print("Speedup:\t ", np.round(mean_numpy / mean_mojo, 4), "x", sep="")
+        std_mojo = np.std(times_mojo)
+        sem = std_mojo / np.sqrt(BENCHMARK_RUNS)
+        ci = stats.t.interval(confidence=0.95, df=BENCHMARK_RUNS-1, loc=mean_mojo, scale=sem)
+
+        print("Mean time:\t", np.round(mean_mojo, 6), "s ±", np.round((ci[1] - ci[0]) / 2, 6), "s")
+        print("Speedup:\t ", np.round(mean_numpy / mean_mojo, 6), "x", sep="")
 
     reals_mojo_ref.free()
     reals_mojo.free()

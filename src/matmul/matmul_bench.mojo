@@ -109,6 +109,7 @@ fn matmul_vptu(
 
 fn main() raises:
     np = Python.import_module("numpy")
+    stats = Python.import_module("scipy.stats")
 
     ### NUMPY ###
 
@@ -129,10 +130,13 @@ fn main() raises:
         end_time = perf_counter()
         times_numpy[i] = end_time - start_time
 
-    numpy_mean = np.mean(times_numpy)
+    mean_numpy = np.mean(times_numpy)
+    std_numpy = np.std(times_numpy, ddof=1)
+    sem = std_numpy / np.sqrt(BENCHMARK_RUNS)  # Standard error of the mean
+    ci = stats.t.interval(confidence=0.95, df=BENCHMARK_RUNS-1, loc=mean_numpy, scale=sem)
+
     print("NumPy Matrix Multiplication")
-    print("Mean time:\t", np.round(numpy_mean, 4), "s")
-    print("Std dev:\t", np.round(np.std(times_numpy, ddof=1), 4), "s")
+    print("Execution time:\t", np.round(mean_numpy, 6), "s ±", np.round((ci[1] - ci[0]) / 2, 6), "s")
 
 
     ### MOJO ###
@@ -184,10 +188,13 @@ fn main() raises:
         if x == 4: print("\nVectorized+Parallelized+Tiled+Unrolled", end=" ")
         print("Mojo Matrix Multiplication")
 
-        mojo_mean = np.mean(times_mojo)
-        print("Mean time:\t", np.round(mojo_mean, 4), "s")
-        print("Std dev:\t", np.round(np.std(times_mojo, ddof=1), 4), "s")
-        print("Speedup:\t ", np.round(numpy_mean / mojo_mean, 4), "x", sep="")
+        mean_mojo = np.mean(times_mojo)
+        std_mojo = np.std(times_mojo)
+        sem = std_mojo / np.sqrt(BENCHMARK_RUNS)
+        ci = stats.t.interval(confidence=0.95, df=BENCHMARK_RUNS-1, loc=mean_mojo, scale=sem)
+
+        print("Mean time:\t", np.round(mean_mojo, 6), "s ±", np.round((ci[1] - ci[0]) / 2, 6), "s")
+        print("Speedup:\t ", np.round(mean_numpy / mean_mojo, 6), "x", sep="")
 
     C_mojo.free()
     A_mojo.free()
