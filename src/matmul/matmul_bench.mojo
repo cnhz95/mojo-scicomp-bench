@@ -153,7 +153,7 @@ fn main() raises:
         for n in range(N):
             B_mojo[k * N + n] = 3.14
 
-    funcs = [matmul_baseline, matmul_v, matmul_vp, matmul_vpt, matmul_vptu]
+    funcs = [matmul_unoptimized, matmul_v, matmul_vp, matmul_vpt, matmul_vptu]
 
     # Benchmark
     for x, func in enumerate(funcs):
@@ -181,7 +181,7 @@ fn main() raises:
                         ") - Mojo=" + String(C_mojo[m * N + n]) + ", NumPy=" + String(C_numpy[m][n])
                     )
 
-        if x == 0: print("\nBaseline", end=" ")
+        if x == 0: print("\nUnoptimized", end=" ")
         if x == 1: print("\nVectorized", end=" ")
         if x == 2: print("\nVectorized+Parallelized", end=" ")
         if x == 3: print("\nVectorized+Parallelized+Tiled", end=" ")

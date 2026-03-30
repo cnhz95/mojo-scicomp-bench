@@ -1,4 +1,4 @@
-from jacobi_baseline import Heat2DJacobi as jacobi_baseline
+from jacobi_unoptimized import Heat2DJacobi as jacobi_unoptimized
 from jacobi_v import Heat2DJacobi as jacobi_v
 from jacobi_vp import Heat2DJacobi as jacobi_vp
 from jacobi_vpt import Heat2DJacobi as jacobi_vpt
@@ -76,7 +76,7 @@ fn main() raises:
     for x in range(5):
         # Warmup
         for _ in range(WARMUP_RUNS):
-            if x == 0: _ = jacobi_baseline(NX, NY, MAX_ITER).solve()
+            if x == 0: _ = jacobi_unoptimized(NX, NY, MAX_ITER).solve()
             if x == 1: _ = jacobi_v(NX, NY, MAX_ITER).solve()
             if x == 2: _ = jacobi_vp(NX, NY, MAX_ITER).solve()
             if x == 3: _ = jacobi_vpt(NX, NY, MAX_ITER).solve()
@@ -84,13 +84,13 @@ fn main() raises:
 
         # Benchmark Mojo implementations
         for i in range(BENCHMARK_RUNS):
-            if x == 0: times_mojo[i], iters_mojo[i] = benchmark(jacobi_baseline(NX, NY, MAX_ITER), grid_numpy)
+            if x == 0: times_mojo[i], iters_mojo[i] = benchmark(jacobi_unoptimized(NX, NY, MAX_ITER), grid_numpy)
             if x == 1: times_mojo[i], iters_mojo[i] = benchmark(jacobi_v(NX, NY, MAX_ITER), grid_numpy)
             if x == 2: times_mojo[i], iters_mojo[i] = benchmark(jacobi_vp(NX, NY, MAX_ITER), grid_numpy)
             if x == 3: times_mojo[i], iters_mojo[i] = benchmark(jacobi_vpt(NX, NY, MAX_ITER), grid_numpy)
             if x == 4: times_mojo[i], iters_mojo[i] = benchmark(jacobi_vptu(NX, NY, MAX_ITER), grid_numpy)
 
-        if x == 0: print("\nBaseline", end=" ")
+        if x == 0: print("\nUnoptimized", end=" ")
         if x == 1: print("\nVectorized", end=" ")
         if x == 2: print("\nVectorized+Parallelized", end=" ")
         if x == 3: print("\nVectorized+Parallelized+Tiled", end=" ")

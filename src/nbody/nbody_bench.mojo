@@ -1,4 +1,4 @@
-from nbody_baseline import NBodySystem as nbody_baseline
+from nbody_unoptimized import NBodySystem as nbody_unoptimized
 from nbody_v import NBodySystem as nbody_v
 from nbody_vp import NBodySystem as nbody_vp
 from nbody_vpt import NBodySystem as nbody_vpt
@@ -114,13 +114,13 @@ fn main() raises:
     times_mojo = np.zeros(NUM_RUNS)
     for x in range(5):
         for i in range(NUM_RUNS):
-            if x == 0: times_mojo[i], initial_energy_mojo[i], final_energy_mojo[i] = benchmark(nbody_baseline(N, pos_mojo, vel_mojo, mass_mojo))
+            if x == 0: times_mojo[i], initial_energy_mojo[i], final_energy_mojo[i] = benchmark(nbody_unoptimized(N, pos_mojo, vel_mojo, mass_mojo))
             if x == 1: times_mojo[i], initial_energy_mojo[i], final_energy_mojo[i] = benchmark(nbody_v(N, pos_mojo, vel_mojo, mass_mojo))
             if x == 2: times_mojo[i], initial_energy_mojo[i], final_energy_mojo[i] = benchmark(nbody_vp(N, pos_mojo, vel_mojo, mass_mojo))
             if x == 3: times_mojo[i], initial_energy_mojo[i], final_energy_mojo[i] = benchmark(nbody_vpt(N, pos_mojo, vel_mojo, mass_mojo))
             if x == 4: times_mojo[i], initial_energy_mojo[i], final_energy_mojo[i] = benchmark(nbody_vptu(N, pos_mojo, vel_mojo, mass_mojo))
 
-        if x == 0: print("\nBaseline", end=" ")
+        if x == 0: print("\nUnoptimized", end=" ")
         if x == 1: print("\nVectorized", end=" ")
         if x == 2: print("\nVectorized+Parallelized", end=" ")
         if x == 3: print("\nVectorized+Parallelized+Tiled", end=" ")

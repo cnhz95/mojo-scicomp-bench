@@ -1,4 +1,4 @@
-from fft_baseline import fft as fft_baseline
+from fft_unoptimized import fft as fft_unoptimized
 from fft_v import fft as fft_v
 from fft_vp import fft as fft_vp
 from fft_vpu import fft as fft_vpu
@@ -47,7 +47,7 @@ fn main() raises:
 
     ### MOJO
 
-    funcs = [fft_baseline, fft_v, fft_vp, fft_vpu]
+    funcs = [fft_unoptimized, fft_v, fft_vp, fft_vpu]
 
     reals_mojo_ref = alloc[Scalar[DTYPE]](N)
     reals_mojo = alloc[Scalar[DTYPE]](N)
@@ -83,7 +83,7 @@ fn main() raises:
                 err_mag = sqrt(err_real * err_real + err_imag * err_imag)
                 assert_true(err_mag < 1e-8, msg="Mismatch of " + String(err_mag) + " at position " + String(i))
 
-        if x == 0: print("\nBaseline", end=" ")
+        if x == 0: print("\nUnoptimized", end=" ")
         if x == 1: print("\nVectorized", end=" ")
         if x == 2: print("\nVectorized+Parallelized", end=" ")
         if x == 3: print("\nVectorized+Parallelized+Unrolled", end=" ")
