@@ -92,28 +92,34 @@ struct NBodySystem(NBody):
                     acc_z_local = 0.0
 
                     @parameter
-                    fn accumulate_pairwise_acceleration[width: Int](offset: Int):
-                        j = j_start + offset
-                        dx_vec = self.pos_x.load[width=width](j) - pos_x_i  # Broadcast scalar value
-                        dy_vec = self.pos_y.load[width=width](j) - pos_y_i
-                        dz_vec = self.pos_z.load[width=width](j) - pos_z_i
-                        mass_j_vec = self.mass.load[width=width](j)
-                        
-                        # Mask out self-interaction
-                        indices = iota[DType.int32, width](j)  # [j, j+1, j+2, ..., j+width-1]
-                        mask_vec = SIMD[DType.bool, width](fill=(indices != i)).select(1.0, 0.0)
+                    fn accumulate_range_for_i(j_begin: Int, j_finish: Int):
+                        @parameter
+                        fn accumulate_pairwise_acceleration[width: Int](offset: Int):
+                            j = j_begin + offset
+                            dx_vec = self.pos_x.load[width=width](j) - pos_x_i  # Broadcast scalar value
+                            dy_vec = self.pos_y.load[width=width](j) - pos_y_i
+                            dz_vec = self.pos_z.load[width=width](j) - pos_z_i
+                            mass_j_vec = self.mass.load[width=width](j)
+                            
+                            distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING
+                            distance_vec = sqrt(distance_squared_vec)
+                            force_vec = G * mass_j_vec / (distance_vec * distance_squared_vec)
+                            
+                            acc_x_local += (force_vec * dx_vec).reduce_add()
+                            acc_y_local += (force_vec * dy_vec).reduce_add()
+                            acc_z_local += (force_vec * dz_vec).reduce_add()
 
-                        distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING
-                        distance_vec = sqrt(distance_squared_vec)
-                        force_vec = G * mass_j_vec / (distance_vec * distance_squared_vec) * mask_vec
-                        
-                        acc_x_local += (force_vec * dx_vec).reduce_add()
-                        acc_y_local += (force_vec * dy_vec).reduce_add()
-                        acc_z_local += (force_vec * dz_vec).reduce_add()
+                        range_width = j_finish - j_begin
+                        vectorize[accumulate_pairwise_acceleration, NELTS, unroll_factor=UNROLL_FACTOR](range_width)
 
-                    tile_width = j_end - j_start
-                    vectorize[accumulate_pairwise_acceleration, NELTS, unroll_factor=UNROLL_FACTOR](tile_width)
-                
+                    if i < j_start or i >= j_end:
+                        # Tile contains i
+                        accumulate_range_for_i(j_start, j_end)
+                    else:
+                        # Avoid self-interaction
+                        accumulate_range_for_i(j_start, i)
+                        accumulate_range_for_i(i + 1, j_end)
+
                     self.acc_x[i] += acc_x_local
                     self.acc_y[i] += acc_y_local
                     self.acc_z[i] += acc_z_local
@@ -200,8 +206,8 @@ struct NBodySystem(NBody):
                         # Potential energy: -G * m1 * m2 / r
                         tile_potential_energy -= G * mass_i * (mass_j_vec / distance_vec).reduce_add()
                         
-                    tile_width = j_end - j_begin
-                    vectorize[accumulate_potential_energy, NELTS, unroll_factor=UNROLL_FACTOR](tile_width)
+                    range_width = j_end - j_begin
+                    vectorize[accumulate_potential_energy, NELTS, unroll_factor=UNROLL_FACTOR](range_width)
 
             _ = potential_energy.fetch_add(tile_potential_energy)
 
