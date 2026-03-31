@@ -112,7 +112,7 @@ struct NBodySystem(NBody):
                         vectorize[accumulate_pairwise_acceleration, NELTS](range_width)
 
                     if i < j_start or i >= j_end:
-                        # Tile contains i
+                        # Tile does not contain i
                         accumulate_range_for_i(j_start, j_end)
                     else:
                         # Avoid self-interaction
