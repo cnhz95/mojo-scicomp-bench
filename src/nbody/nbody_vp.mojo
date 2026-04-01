@@ -89,7 +89,7 @@ struct NBodySystem(NBody):
                 
                 # Mask out self-interaction
                 indices = iota[DType.int32, width](offset)  # [offset, offset+1, offset+2, ..., offset+width-1]
-                mask_vec = SIMD[DType.bool, width](fill=(indices != i)).select(1.0, 0.0)
+                mask_vec = indices.ne(i).select(1.0, 0.0)
 
                 distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING
                 distance_vec = sqrt(distance_squared_vec)
@@ -101,7 +101,6 @@ struct NBodySystem(NBody):
 
             vectorize[accumulate_pairwise_acceleration, NELTS](self.N)
 
-            # Each particle writes to its own acceleration slots
             self.acc_x[i] = acc_x_local
             self.acc_y[i] = acc_y_local
             self.acc_z[i] = acc_z_local

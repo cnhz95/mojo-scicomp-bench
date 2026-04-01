@@ -83,8 +83,8 @@ struct NBodySystem(NBody):
                 mass_j_vec = self.mass.load[width=width](offset)
                 
                 # Mask out self-interaction
-                indices = iota[DType.int32, width](offset)
-                mask_vec = SIMD[DType.bool, width](fill=(indices != i)).select(1.0, 0.0)
+                indices = iota[DType.int32, width](offset)  # [offset, offset+1, offset+2, ..., offset+width-1]
+                mask_vec = indices.ne(i).select(1.0, 0.0)
 
                 distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING
                 distance_vec = sqrt(distance_squared_vec)
