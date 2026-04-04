@@ -78,10 +78,17 @@ fn main() raises:
 
             # Verify against NumPy baseline
             for i in range(N):
-                err_real = reals_mojo[i] - Float64(output_numpy.real[i])
-                err_imag = imags_mojo[i] - Float64(output_numpy.imag[i])
+                ref_real = Float64(output_numpy.real[i])
+                ref_imag = Float64(output_numpy.imag[i])
+
+                err_real = reals_mojo[i] - ref_real
+                err_imag = imags_mojo[i] - ref_imag
                 err_mag = sqrt(err_real * err_real + err_imag * err_imag)
-                assert_true(err_mag < 1e-8, msg="Mismatch of " + String(err_mag) + " at position " + String(i))
+                ref_mag = sqrt(ref_real * ref_real + ref_imag * ref_imag)
+
+                atol = 5e-10
+                rtol = 1e-12
+                assert_true(err_mag < atol + rtol * ref_mag, msg="Mismatch of " + String(err_mag) + " at position " + String(i))
 
         if x == 0: print("\nUnoptimized", end=" ")
         if x == 1: print("\nVectorized", end=" ")
