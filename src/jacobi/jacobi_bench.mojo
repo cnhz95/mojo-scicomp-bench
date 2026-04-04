@@ -63,7 +63,7 @@ fn main() raises:
     mean_numpy = np.mean(times_numpy)
     std_numpy = np.std(times_numpy, ddof=1)
     sem = std_numpy / np.sqrt(BENCHMARK_RUNS)  # Standard error of the mean
-    res = stats.t.interval(confidence=0.95, df=BENCHMARK_RUNS-1, loc=mean_numpy, scale=sem)
+    ci = stats.t.interval(confidence=0.95, df=BENCHMARK_RUNS-1, loc=mean_numpy, scale=sem)
 
     print("NumPy Jacobi 2D Heat Equation Solver")
     print("Execution time:\t", np.round(mean_numpy, 6), "s ±", np.round((ci[1] - ci[0]) / 2, 6), "s")
@@ -103,7 +103,7 @@ fn main() raises:
         mean_mojo = np.mean(times_mojo)
         std_mojo = np.std(times_mojo)
         sem = std_mojo / np.sqrt(BENCHMARK_RUNS)  # Standard error of the mean
-        res = stats.t.interval(confidence=0.95, df=BENCHMARK_RUNS-1, loc=mean_mojo, scale=sem)
+        ci = stats.t.interval(confidence=0.95, df=BENCHMARK_RUNS-1, loc=mean_mojo, scale=sem)
 
         print("Mean time:\t", np.round(mean_mojo, 6), "s ±", np.round((ci[1] - ci[0]) / 2, 6), "s")
         print("Speedup:\t ", np.round(mean_numpy / mean_mojo, 2), "x", sep="")
