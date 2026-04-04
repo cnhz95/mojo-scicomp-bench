@@ -14,7 +14,7 @@ comptime CENTER_COEFF = 2.0 * (R_X + R_Y)
 comptime INITIAL_TEMP = 20.0
 comptime DTYPE = DType.float64
 comptime NELTS = simd_width_of[DTYPE]() * 2
-comptime TILE_SIZE = 64
+comptime TILE_SIZE = 32
 
 struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
     var NX: Int
