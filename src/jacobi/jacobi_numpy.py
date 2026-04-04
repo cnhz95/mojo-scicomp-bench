@@ -9,9 +9,10 @@ INITIAL_TEMP = 20.0
 MAX_ITER = 20000
 
 class Heat2DJacobi:
-    def __init__(self, NX, NY):
+    def __init__(self, NX, NY, MAX_ITER):
         self.NX = NX
         self.NY = NY
+        self.MAX_ITER = MAX_ITER
         self.T_curr = np.full((self.NX, self.NY), INITIAL_TEMP)
         self.T_next = np.zeros((self.NX, self.NY))
         self.apply_boundary_conditions(self.T_curr)
@@ -54,7 +55,7 @@ class Heat2DJacobi:
         self.T_next[:] = self.T_curr[:]  # Initial guess: T_next = T_curr
 
         # Jacobi iteration loop
-        for iter in range(MAX_ITER):
+        for iter in range(self.MAX_ITER):
             self.jacobi_iteration()
             self.apply_boundary_conditions(self.T_next)
             res = self.residual_norm()
@@ -67,7 +68,7 @@ class Heat2DJacobi:
             self.T_curr, self.T_next = self.T_next, self.T_curr
 
         # Did not converge
-        return MAX_ITER
+        return self.MAX_ITER
     
 
     def verify_solution(self):
