@@ -8,10 +8,10 @@ from testing.testing import assert_true
 from time import perf_counter
 from python import Python
 
-alias N = 1 << 20
-alias WARMUP_RUNS = 10
-alias BENCHMARK_RUNS = 10
-alias DTYPE = DType.float64
+comptime N = 1 << 20
+comptime WARMUP_RUNS = 10
+comptime BENCHMARK_RUNS = 10
+comptime DTYPE = DType.float64
 
 fn main() raises:
     np = Python.import_module("numpy")
