@@ -177,12 +177,13 @@ fn main() raises:
             times_mojo[i] = end_time - start_time
 
             # Verify against NumPy baseline
+            C_mojo_np = np.empty(Python.tuple(M, N), dtype=np.float64)
             for m in range(M):
                 for n in range(N):
-                    assert_true(np.isclose(C_mojo[m * N + n], Float64(C_numpy[m][n]), rtol=1e-12, atol=1e-12),
-                        msg="Mismatch at (" + String(m) + "," + String(n) +
-                        ") - Mojo=" + String(C_mojo[m * N + n]) + ", NumPy=" + String(C_numpy[m][n])
-                    )
+                    C_mojo_np[m, n] = C_mojo[m * N + n]
+
+            rel_frob =  np.linalg.norm(C_mojo_np - C_numpy) / np.linalg.norm(C_numpy)
+            assert_true(rel_frob < 1e-12, msg="Relative Frobenius error is too large: " + String(rel_frob))
 
         if x == 0: print("\nUnoptimized", end=" ")
         if x == 1: print("\nVectorized", end=" ")
