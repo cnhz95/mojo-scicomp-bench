@@ -14,7 +14,8 @@ comptime CENTER_COEFF = 2.0 * (R_X + R_Y)
 comptime INITIAL_TEMP = 20.0
 comptime DTYPE = DType.float64
 comptime NELTS = simd_width_of[DTYPE]() * 2
-comptime TILE_SIZE = 32
+comptime TILE_I = 32
+comptime TILE_J = 32
 
 struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
     var NX: Int
@@ -80,18 +81,18 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
 
     @always_inline
     fn jacobi_update(self):
-        num_i_tiles = (self.NX - 2 + TILE_SIZE - 1) // TILE_SIZE
-        num_j_tiles = (self.NY - 2 + TILE_SIZE - 1) // TILE_SIZE
+        num_i_tiles = (self.NX - 2 + TILE_I - 1) // TILE_I
+        num_j_tiles = (self.NY - 2 + TILE_J - 1) // TILE_J
 
         @parameter
         fn update_row(tile_idx: Int):
             tile_i = tile_idx // num_j_tiles
             tile_j = tile_idx % num_j_tiles
 
-            i_start = tile_i * TILE_SIZE + 1
-            i_end = min(i_start + TILE_SIZE, self.NX - 1)
-            j_start = tile_j * TILE_SIZE + 1
-            j_end = min(j_start + TILE_SIZE, self.NY - 1)
+            i_start = tile_i * TILE_I + 1
+            i_end = min(i_start + TILE_I, self.NX - 1)
+            j_start = tile_j * TILE_J + 1
+            j_end = min(j_start + TILE_J, self.NY - 1)
 
             # Process all rows in this tile
             for i in range(i_start, i_end):
@@ -120,18 +121,18 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
         res_squared = Atomic[DTYPE](0.0)
         norm_squared = Atomic[DTYPE](0.0)
 
-        num_i_tiles = (self.NX - 2 + TILE_SIZE - 1) // TILE_SIZE
-        num_j_tiles = (self.NY - 2 + TILE_SIZE - 1) // TILE_SIZE
+        num_i_tiles = (self.NX - 2 + TILE_I - 1) // TILE_I
+        num_j_tiles = (self.NY - 2 + TILE_J - 1) // TILE_J
 
         @parameter
         fn accumulate_tile_residual(tile_idx: Int):
             tile_i = tile_idx // num_j_tiles
             tile_j = tile_idx % num_j_tiles
 
-            i_start = tile_i * TILE_SIZE + 1
-            i_end = min(i_start + TILE_SIZE, self.NX - 1)
-            j_start = tile_j * TILE_SIZE + 1
-            j_end = min(j_start + TILE_SIZE, self.NY - 1)
+            i_start = tile_i * TILE_I + 1
+            i_end = min(i_start + TILE_I, self.NX - 1)
+            j_start = tile_j * TILE_J + 1
+            j_end = min(j_start + TILE_J, self.NY - 1)
 
             local_res_sum = 0.0
             local_norm_sum = 0.0
