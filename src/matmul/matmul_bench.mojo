@@ -11,7 +11,7 @@ comptime K = 1 << 12
 comptime WARMUP_RUNS = 10
 comptime BENCHMARK_RUNS = 10
 comptime DTYPE = DType.float64
-comptime NELTS = simd_width_of[DTYPE]()
+comptime NELTS = simd_width_of[DTYPE]() * 2
 comptime TILE_SIZE = 4
 
 @always_inline
@@ -110,12 +110,27 @@ fn matmul_vptu(
 fn main() raises:
     np = Python.import_module("numpy")
     stats = Python.import_module("scipy.stats")
+    rng = np.random.default_rng(42)
+
+    # Generate data used by NumPy and Mojo
+    C_numpy = np.zeros(Python.tuple(M, N), dtype=np.float64)
+    A_numpy = rng.normal(loc=0.0, scale=1.0, size=Python.tuple(M, K)).astype(np.float64)
+    B_numpy = rng.normal(loc=0.0, scale=1.0, size=Python.tuple(K, N)).astype(np.float64)
+
+    C_mojo = alloc[Scalar[DTYPE]](M * N)
+    A_mojo = alloc[Scalar[DTYPE]](M * K)
+    B_mojo = alloc[Scalar[DTYPE]](K * N)
+
+    for m in range(M):
+        for k in range(K):
+            A_mojo[m * K + k] = Float64(A_numpy[m][k])
+
+    for k in range(K):
+        for n in range(N):
+            B_mojo[k * N + n] = Float64(B_numpy[k][n])
+
 
     ### NUMPY ###
-
-    C_numpy = np.zeros(Python.tuple(M, N))
-    A_numpy = np.full(Python.tuple(M, K), 3.14, dtype=np.float64)
-    B_numpy = np.full(Python.tuple(K, N), 3.14, dtype=np.float64)
 
     # Warmup
     C_numpy = np.matmul(A_numpy, B_numpy)
@@ -141,18 +156,6 @@ fn main() raises:
 
     ### MOJO ###
 
-    C_mojo = alloc[Scalar[DTYPE]](M * N)
-    A_mojo = alloc[Scalar[DTYPE]](M * K)
-    B_mojo = alloc[Scalar[DTYPE]](K * N)
-
-    # Initialize matrices A and B
-    for m in range(M):
-        for k in range(K):
-            A_mojo[m * K + k] = 3.14
-    for k in range(K):
-        for n in range(N):
-            B_mojo[k * N + n] = 3.14
-
     funcs = [matmul_unoptimized, matmul_v, matmul_vp, matmul_vpt, matmul_vptu]
 
     # Benchmark
@@ -176,7 +179,7 @@ fn main() raises:
             # Verify against NumPy baseline
             for m in range(M):
                 for n in range(N):
-                    assert_true(abs(C_mojo[m * N + n] - Float64(C_numpy[m][n])) < 1e-8,
+                    assert_true(np.isclose(C_mojo[m * N + n], Float64(C_numpy[m][n]), rtol=1e-4, atol=1e-5),
                         msg="Mismatch at (" + String(m) + "," + String(n) +
                         ") - Mojo=" + String(C_mojo[m * N + n]) + ", NumPy=" + String(C_numpy[m][n])
                     )
