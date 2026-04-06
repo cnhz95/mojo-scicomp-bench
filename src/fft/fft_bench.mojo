@@ -16,23 +16,31 @@ comptime DTYPE = DType.float64
 fn main() raises:
     np = Python.import_module("numpy")
     stats = Python.import_module("scipy.stats")
+    rng = np.random.default_rng(42)
+    
+    # Generate data used by NumPy and Mojo
+    random_signal = rng.normal(loc=0.0, scale=1.0, size=N)
+    
+    reals_mojo_ref = alloc[Scalar[DTYPE]](N)
+    reals_mojo = alloc[Scalar[DTYPE]](N)
+    imags_mojo = alloc[Scalar[DTYPE]](N)
+
+    # Construct an UnsafePointer from the raw data pointer of the NumPy array
+    parallel_memcpy(dest=reals_mojo_ref, src=random_signal.ctypes.data.unsafe_get_as_pointer[DTYPE](), count=N)
+
 
     ### NUMPY ###
 
-    sine_wave = np.zeros(N)
-    for i in range(N):
-        sine_wave[i] = np.sin(2.0 * np.pi * i / N)
-
     # Warmup
-    output_numpy = np.fft.fft(sine_wave)
+    output_numpy = np.fft.fft(random_signal)
     for _ in range(WARMUP_RUNS - 1):
-        _ = np.fft.fft(sine_wave)
+        _ = np.fft.fft(random_signal)
 
     # Benchmark NumPy
     times_numpy = np.zeros(BENCHMARK_RUNS)
     for i in range(BENCHMARK_RUNS):
         start_time = perf_counter()
-        _ = np.fft.fft(sine_wave)
+        _ = np.fft.fft(random_signal)
         end_time = perf_counter()
         times_numpy[i] = end_time - start_time
 
@@ -48,13 +56,6 @@ fn main() raises:
     ### MOJO
 
     funcs = [fft_unoptimized, fft_v, fft_vp, fft_vpu]
-
-    reals_mojo_ref = alloc[Scalar[DTYPE]](N)
-    reals_mojo = alloc[Scalar[DTYPE]](N)
-    imags_mojo = alloc[Scalar[DTYPE]](N)
-
-    # Construct an UnsafePointer from the raw data pointer of the NumPy array
-    parallel_memcpy(dest=reals_mojo_ref, src=sine_wave.ctypes.data.unsafe_get_as_pointer[DTYPE](), count=N)
 
     # Benchmark
     for x, func in enumerate(funcs):
