@@ -77,18 +77,13 @@ fn main() raises:
             times_mojo[i] = end_time - start_time
 
             # Verify against NumPy baseline
+            output_mojo = np.empty(Python.tuple(N), dtype=np.complex128)
             for i in range(N):
-                ref_real = Float64(output_numpy.real[i])
-                ref_imag = Float64(output_numpy.imag[i])
-
-                err_real = reals_mojo[i] - ref_real
-                err_imag = imags_mojo[i] - ref_imag
-                err_mag = sqrt(err_real * err_real + err_imag * err_imag)
-                ref_mag = sqrt(ref_real * ref_real + ref_imag * ref_imag)
-
-                atol = 5e-10
-                rtol = 1e-12
-                assert_true(err_mag < atol + rtol * ref_mag, msg="Mismatch of " + String(err_mag) + " at position " + String(i))
+                output_mojo.real[i] = reals_mojo[i]
+                output_mojo.imag[i] = imags_mojo[i]
+                
+            rel_l2 = np.linalg.norm(output_mojo - output_numpy) / np.linalg.norm(output_numpy)
+            assert_true(rel_l2 < 1e-12, msg="Relative L2 error is too large: " + String(rel_l2))
 
         if x == 0: print("\nUnoptimized", end=" ")
         if x == 1: print("\nVectorized", end=" ")
