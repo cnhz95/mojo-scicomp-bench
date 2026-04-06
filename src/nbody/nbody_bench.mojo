@@ -56,12 +56,12 @@ fn main() raises:
     mass_mojo = alloc[Scalar[DTYPE]](N)
 
     for i in range(N):
-        pos_mojo[i] = Float64(pos_data[i][0])
-        vel_mojo[i] = Float64(vel_data[i][0])
-        pos_mojo[i + N] = Float64(pos_data[i][1])
-        vel_mojo[i + N] = Float64(vel_data[i][1])
-        pos_mojo[i + 2 * N] = Float64(pos_data[i][2])
-        vel_mojo[i + 2 * N] = Float64(vel_data[i][2])
+        pos_mojo[i] = Float64(pos_data[i, 0])
+        vel_mojo[i] = Float64(vel_data[i, 0])
+        pos_mojo[i + N] = Float64(pos_data[i, 1])
+        vel_mojo[i + N] = Float64(vel_data[i, 1])
+        pos_mojo[i + 2 * N] = Float64(pos_data[i, 2])
+        vel_mojo[i + 2 * N] = Float64(vel_data[i, 2])
         mass_mojo[i] = Float64(mass_data[i])
         
 
