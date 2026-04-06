@@ -179,7 +179,7 @@ fn main() raises:
             # Verify against NumPy baseline
             for m in range(M):
                 for n in range(N):
-                    assert_true(np.isclose(C_mojo[m * N + n], Float64(C_numpy[m][n]), rtol=1e-4, atol=1e-5),
+                    assert_true(np.isclose(C_mojo[m * N + n], Float64(C_numpy[m][n]), rtol=1e-12, atol=1e-12),
                         msg="Mismatch at (" + String(m) + "," + String(n) +
                         ") - Mojo=" + String(C_mojo[m * N + n]) + ", NumPy=" + String(C_numpy[m][n])
                     )
