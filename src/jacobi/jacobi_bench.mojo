@@ -16,6 +16,8 @@ comptime BENCHMARK_RUNS = 10
 
 @always_inline
 fn benchmark[T: Jacobi](solver: T, grid_numpy: PythonObject) raises -> Tuple[PythonObject, PythonObject]:
+    np = Python.import_module("numpy")
+    
     start_time = perf_counter()
     iters = solver.solve()
     end_time = perf_counter()
@@ -23,7 +25,7 @@ fn benchmark[T: Jacobi](solver: T, grid_numpy: PythonObject) raises -> Tuple[Pyt
     # Verify against NumPy baseline
     for i in range(1, NX - 1):
         for j in range(1, NY - 1):
-            assert_true(abs(solver[i, j] - Float64(grid_numpy[i][j])) < 1e-8,
+            assert_true(np.isclose(solver[i, j], Float64(grid_numpy[i][j]), rtol=1e-10, atol=1e-10),
                 msg="Mismatch at (" + String(i) + "," + String(j) + ") - Mojo=" +
                 String(solver[i, j]) + ", NumPy=" + String(grid_numpy[i][j])
             )
