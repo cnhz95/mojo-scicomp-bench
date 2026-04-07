@@ -18,7 +18,7 @@ fn main() raises:
     stats = Python.import_module("scipy.stats")
     rng = np.random.default_rng(42)
     
-    # Generate data used by NumPy and Mojo
+    # Generate data for NumPy and Mojo
     random_signal = rng.normal(loc=0.0, scale=1.0, size=N)
     
     reals_mojo_ref = alloc[Scalar[DTYPE]](N)

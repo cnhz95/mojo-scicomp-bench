@@ -112,10 +112,10 @@ fn main() raises:
     stats = Python.import_module("scipy.stats")
     rng = np.random.default_rng(42)
 
-    # Generate data used by NumPy and Mojo
+    # Generate data for NumPy and Mojo
     C_numpy = np.zeros(Python.tuple(M, N), dtype=np.float64)
-    A_numpy = rng.normal(loc=0.0, scale=1.0, size=Python.tuple(M, K)).astype(np.float64)
-    B_numpy = rng.normal(loc=0.0, scale=1.0, size=Python.tuple(K, N)).astype(np.float64)
+    A_numpy = rng.normal(loc=0.0, scale=1.0, size=Python.tuple(M, K))
+    B_numpy = rng.normal(loc=0.0, scale=1.0, size=Python.tuple(K, N))
 
     C_mojo = alloc[Scalar[DTYPE]](M * N)
     A_mojo = alloc[Scalar[DTYPE]](M * K)
