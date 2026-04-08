@@ -123,11 +123,11 @@ fn main() raises:
 
     for m in range(M):
         for k in range(K):
-            A_mojo[m * K + k] = Float64(A_numpy[m][k])
+            A_mojo[m * K + k] = Float64(A_numpy[m, k])
 
     for k in range(K):
         for n in range(N):
-            B_mojo[k * N + n] = Float64(B_numpy[k][n])
+            B_mojo[k * N + n] = Float64(B_numpy[k, n])
 
 
     ### NUMPY ###
