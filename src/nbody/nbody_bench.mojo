@@ -9,7 +9,7 @@ from testing.testing import assert_true
 from python import Python, PythonObject
 
 comptime N = 1 << 10
-comptime TOL = 1e-4
+comptime TOL = 1e-5
 comptime NUM_RUNS = 10
 comptime WARMUP_STEPS = 50
 comptime BENCHMARK_STEPS = 50
@@ -127,8 +127,8 @@ fn main() raises:
         if x == 4: print("\nVectorized+Parallelized+Tiled+Unrolled", end=" ")
         print("Mojo N-body Simulation")
 
-        assert_true(np.allclose(initial_energy_mojo, initial_energy_numpy), msg="Initial energy differs between Mojo and NumPy")
-        assert_true(np.allclose(final_energy_mojo, final_energy_numpy), msg="Final energy differs between Mojo and NumPy")
+        assert_true(np.allclose(initial_energy_mojo, initial_energy_numpy, rtol=1e-6, atol=1e-6), msg="Initial energy differs between Mojo and NumPy")
+        assert_true(np.allclose(final_energy_mojo, final_energy_numpy, rtol=1e-6, atol=1e-6), msg="Final energy differs between Mojo and NumPy")
 
         mean_mojo = np.mean(times_mojo)
         std_mojo = np.std(times_mojo)
