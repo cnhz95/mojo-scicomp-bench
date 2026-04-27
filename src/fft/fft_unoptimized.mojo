@@ -6,18 +6,18 @@ comptime DTYPE = DType.float64
 @always_inline
 fn bit_reverse(x: Int, num_bits: Int) -> Int:
     """Reverse the bits of x using num_bits bits."""
-    reverse = 0
+    rev = 0
     for i in range(num_bits):
-        reverse = (reverse << 1) | ((x >> i) & 1)
+        rev = (rev << 1) | ((x >> i) & 1)
     
-    return reverse
+    return rev
 
 
 @always_inline
 fn fft(
     N: Int,
-    reals: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external],
-    imags: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
+    real: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external],
+    imag: UnsafePointer[mut=True, Scalar[DTYPE], MutOrigin.external]
 ) raises:
     """Iterative Cooley-Tukey radix-2 FFT."""
     assert_true(N > 0 and (N & (N - 1)) == 0, msg="N must be a power of 2")
@@ -28,43 +28,43 @@ fn fft(
         j = bit_reverse(i, num_bits)
         if j > i:
             # Swaps are disjoint
-            swap(reals[i], reals[j])
-            swap(imags[i], imags[j])
+            swap(real[i], real[j])
+            swap(imag[i], imag[j])
 
-    w_re = alloc[Scalar[DTYPE]](N // 2)
-    w_im = alloc[Scalar[DTYPE]](N // 2)
+    W_re = alloc[Scalar[DTYPE]](N // 2)
+    W_im = alloc[Scalar[DTYPE]](N // 2)
 
-    len = 2
-    while len <= N:
-        half = len >> 1
+    stage_size = 2
+    while stage_size <= N:
+        half_size = stage_size >> 1
         
         # Compute contiguous twiddles for this stage
-        for k in range(half):
-            theta = -2.0 * pi * Float64(k) / Float64(len)
-            w_re[k] = cos(theta)
-            w_im[k] = sin(theta)
+        for k in range(half_size):
+            theta = -2.0 * pi * Float64(k) / Float64(stage_size)
+            W_re[k] = cos(theta)
+            W_im[k] = sin(theta)
 
         # Process all groups at this stage
-        for i in range(0, N, len):
+        for i in range(0, N, stage_size):
             # Perform butterfly operations within group
-            for j in range(half):
+            for j in range(half_size):
                 even_idx = i + j
-                odd_idx = even_idx + half
+                odd_idx = even_idx + half_size
 
-                u_re = reals[even_idx]
-                u_im = imags[even_idx]
+                u_re = real[even_idx]
+                u_im = imag[even_idx]
 
                 # Complex multiply
-                v_re = reals[odd_idx] * w_re[j] - imags[odd_idx] * w_im[j]
-                v_im = reals[odd_idx] * w_im[j] + imags[odd_idx] * w_re[j]
+                v_re = real[odd_idx] * W_re[j] - imag[odd_idx] * W_im[j]
+                v_im = real[odd_idx] * W_im[j] + imag[odd_idx] * W_re[j]
                 
                 # Butterfly operations
-                reals[even_idx] = u_re + v_re
-                imags[even_idx] = u_im + v_im
-                reals[odd_idx] = u_re - v_re
-                imags[odd_idx] = u_im - v_im
+                real[even_idx] = u_re + v_recalling
+                imag[even_idx] = u_im + v_im
+                real[odd_idx] = u_re - v_re
+                imag[odd_idx] = u_im - v_im
 
-        len <<= 1  # Double the size for next stage
+        stage_size <<= 1  # Double the size for next stage
 
-    w_re.free()
-    w_im.free()
+    W_re.free()
+    W_im.free()
