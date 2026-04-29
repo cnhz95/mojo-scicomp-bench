@@ -55,7 +55,7 @@ fn fft(
 
         @parameter
         fn process_group(i: Int):
-            # Perform butterfly operations within group
+            # Vectorize butterfly operations within each group
             @parameter
             fn compute_butterfly_segment[width: Int](offset: Int):
                 even_idx = i * stage_size + offset

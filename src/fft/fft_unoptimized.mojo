@@ -38,7 +38,7 @@ fn fft(
     while stage_size <= N:
         half_size = stage_size >> 1
         
-        # Compute contiguous twiddles for this stage
+        # Compute twiddle factors for this stage
         for k in range(half_size):
             theta = -2.0 * pi * Float64(k) / Float64(stage_size)
             W_re[k] = cos(theta)

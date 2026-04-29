@@ -42,7 +42,7 @@ fn fft(
     while stage_size <= N:
         half_size = stage_size >> 1
 
-        # Compute contiguous twiddles for this stage
+        # Compute twiddle factors for this stage
         for k in range(half_size):
             theta = -2.0 * pi * Float64(k) / Float64(stage_size)
             W_re[k] = cos(theta)
@@ -50,7 +50,7 @@ fn fft(
 
         # Process all groups at this stage
         for i in range(0, N, stage_size):
-            # Perform butterfly operations within group
+            # Vectorize butterfly operations within each group
             @parameter
             fn compute_butterfly_segment[width: Int](offset: Int):
                 even_idx = i + offset
