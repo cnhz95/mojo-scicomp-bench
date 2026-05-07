@@ -22,13 +22,13 @@ class NBodySystem:
 
         distance_squared = np.sum(dx**2, axis=2) + SOFTENING * SOFTENING
         distance = np.sqrt(distance_squared)
-        force = G * self.mass[None, :] / (distance * distance_squared)
+        f = G * self.mass[None, :] / (distance * distance_squared)
 
         # Zero out diagonal to avoid self-interaction
-        np.fill_diagonal(force, 0.0)
+        np.fill_diagonal(f, 0.0)
 
         # Compute acceleration for each body
-        self.acc = np.sum(force[:, :, None] * dx, axis=1)
+        self.acc = np.sum(f[:, :, None] * dx, axis=1)
 
 
     def advance(self):

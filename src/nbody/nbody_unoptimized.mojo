@@ -80,11 +80,11 @@ struct NBodySystem(NBody):
                 dz = self.pos_z[j] - pos_z_i
                 distance_squared = dx * dx + dy * dy + dz * dz + SOFTENING * SOFTENING
                 distance = sqrt(distance_squared)
-                force = G * self.mass[j] / (distance * distance_squared)
+                f = G * self.mass[j] / (distance * distance_squared)
                 
-                self.acc_x[i] += force * dx
-                self.acc_y[i] += force * dy
-                self.acc_z[i] += force * dz
+                self.acc_x[i] += f * dx
+                self.acc_y[i] += f * dy
+                self.acc_z[i] += f * dz
 
 
     @always_inline

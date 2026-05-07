@@ -104,11 +104,11 @@ struct NBodySystem(NBody):
 
                         distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING
                         distance_vec = sqrt(distance_squared_vec)
-                        force_vec = G * mass_j_vec / (distance_vec * distance_squared_vec) * mask_vec
+                        f_vec = G * mass_j_vec / (distance_vec * distance_squared_vec) * mask_vec
 
-                        acc_x_local += (force_vec * dx_vec).reduce_add()
-                        acc_y_local += (force_vec * dy_vec).reduce_add()
-                        acc_z_local += (force_vec * dz_vec).reduce_add()
+                        acc_x_local += (f_vec * dx_vec).reduce_add()
+                        acc_y_local += (f_vec * dy_vec).reduce_add()
+                        acc_z_local += (f_vec * dz_vec).reduce_add()
 
                     tile_width = j_end - j_start
                     vectorize[accumulate_pairwise_acceleration, NELTS](tile_width)

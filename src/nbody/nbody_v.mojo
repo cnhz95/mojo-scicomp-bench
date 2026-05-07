@@ -88,11 +88,11 @@ struct NBodySystem(NBody):
 
                 distance_squared_vec = dx_vec * dx_vec + dy_vec * dy_vec + dz_vec * dz_vec + SOFTENING * SOFTENING
                 distance_vec = sqrt(distance_squared_vec)
-                force_vec = G * mass_j_vec / (distance_vec * distance_squared_vec) * mask_vec
+                f_vec = G * mass_j_vec / (distance_vec * distance_squared_vec) * mask_vec
 
-                self.acc_x[i] += (force_vec * dx_vec).reduce_add()
-                self.acc_y[i] += (force_vec * dy_vec).reduce_add()
-                self.acc_z[i] += (force_vec * dz_vec).reduce_add()
+                self.acc_x[i] += (f_vec * dx_vec).reduce_add()
+                self.acc_y[i] += (f_vec * dy_vec).reduce_add()
+                self.acc_z[i] += (f_vec * dz_vec).reduce_add()
 
             vectorize[accumulate_pairwise_acceleration, NELTS](self.N)
 
