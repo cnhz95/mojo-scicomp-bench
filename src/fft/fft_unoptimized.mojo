@@ -59,7 +59,7 @@ fn fft(
                 v_im = real[odd_idx] * W_im[j] + imag[odd_idx] * W_re[j]
                 
                 # Butterfly operations
-                real[even_idx] = u_re + v_recalling
+                real[even_idx] = u_re + v_re
                 imag[even_idx] = u_im + v_im
                 real[odd_idx] = u_re - v_re
                 imag[odd_idx] = u_im - v_im
