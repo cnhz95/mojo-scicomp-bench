@@ -6,7 +6,6 @@ R_X = 1.0 / (DX * DX)
 R_Y = 1.0 / (DY * DY)
 CENTER_COEFF = 2.0 * (R_X + R_Y)
 INITIAL_TEMP = 20.0
-MAX_ITER = 20000
 
 class Heat2DJacobi:
     def __init__(self, NX, NY, MAX_ITER):
