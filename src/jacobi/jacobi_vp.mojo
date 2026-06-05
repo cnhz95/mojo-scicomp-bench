@@ -37,9 +37,9 @@ struct Heat2DJacobi(Jacobi, ImplicitlyCopyable):
         return self.T_curr[self.idx(i, j)]
 
 
-    fn __del__(deinit self):
-        self.T_curr.free()
-        self.T_next.free()
+    #fn __del__(deinit self):
+    #   self.T_curr.free()
+    #    self.T_next.free()
 
 
     @always_inline
