@@ -72,13 +72,14 @@ struct NBodySystem(NBody):
     @always_inline
     fn compute_acceleration(self):
         """Compute gravitational acceleration."""
+        num_tiles = (self.N + TILE_SIZE - 1) // TILE_SIZE
+
         @parameter
         fn compute_acceleration_for_tile(tile_idx: Int):
             i_start = tile_idx * TILE_SIZE
             i_end = min(i_start + TILE_SIZE, self.N)
-            num_j_tiles = (self.N + TILE_SIZE - 1) // TILE_SIZE
     
-            for j_tile in range(num_j_tiles):
+            for j_tile in range(num_tiles):
                 j_start = j_tile * TILE_SIZE
                 j_end = min(j_start + TILE_SIZE, self.N)
 
@@ -117,8 +118,7 @@ struct NBodySystem(NBody):
                     self.acc_y[i] += acc_y_local
                     self.acc_z[i] += acc_z_local
 
-        num_i_tiles = (self.N + TILE_SIZE - 1) // TILE_SIZE
-        parallelize[compute_acceleration_for_tile](num_i_tiles)
+        parallelize[compute_acceleration_for_tile](num_tiles)
 
 
     @always_inline
@@ -153,6 +153,7 @@ struct NBodySystem(NBody):
         """Compute total system energy (kinetic + potential)."""
         kinetic_energy = 0.0
         potential_energy = Atomic[DTYPE](0.0)
+        num_tiles = (self.N + TILE_SIZE - 1) // TILE_SIZE
 
         @parameter
         fn accumulate_kinetic_energy[width: Int](offset: Int):
@@ -171,10 +172,9 @@ struct NBodySystem(NBody):
         fn accumulate_potential_for_tile(tile_idx: Int):
             i_start = tile_idx * TILE_SIZE
             i_end = min(i_start + TILE_SIZE, self.N)
-            num_j_tiles = (self.N + TILE_SIZE - 1) // TILE_SIZE
             tile_potential_energy = 0.0
 
-            for j_tile in range(tile_idx, num_j_tiles):
+            for j_tile in range(tile_idx, num_tiles):
                 j_start = j_tile * TILE_SIZE
                 j_end = min(j_start + TILE_SIZE, self.N)
 
@@ -204,8 +204,7 @@ struct NBodySystem(NBody):
 
             _ = potential_energy.fetch_add(tile_potential_energy)
 
-        num_i_tiles = (self.N + TILE_SIZE - 1) // TILE_SIZE
-        parallelize[accumulate_potential_for_tile](num_i_tiles)
+        parallelize[accumulate_potential_for_tile](num_tiles)
 
         return kinetic_energy + potential_energy.load()
 
